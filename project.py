@@ -7,18 +7,22 @@ from tkinter import messagebox
 # Класс-хелпер, обеспечивающий синхронизацию переменных граф. интерфейса
 # с внутренним представлением полей структур
 class BoolVar:
-    def __init__(self, value=False):
+    def __init__(self, value=False, callback=None):
         self.bool = value
         self.tk_var = None
+        self.callback = callback
 
     def set(self, value):
-        self.bool = value
+        if value != self.bool:
+            self.bool = value
+            if self.callback is not None:
+                self.callback.__call__()
 
     def get(self):
         return self.bool
 
     def set_str(self, value):
-        self.bool = value == '1'
+        self.set(value == '1')
 
     def get_str(self):
         if self.bool:
@@ -31,19 +35,23 @@ class BoolVar:
         tk_variable.set(self.bool)
 
         def _callback(*args):
-            self.bool = self.tk_var.get()
+            self.set(self.tk_var.get())
         tk_variable.trace("w", _callback)
 
 
 # Класс-хелпер, обеспечивающий синхронизацию переменных граф. интерфейса
 # с внутренним представлением полей структур
 class StrVar:
-    def __init__(self, value=''):
+    def __init__(self, value='', callback=None):
         self.string = value
         self.tk_var = None
+        self.callback = callback
 
     def set(self, value):
-        self.string = value
+        if value != self.string:
+            self.string = value
+            if self.callback is not None:
+                self.callback.__call__()
 
     def get(self):
         return self.string
@@ -53,8 +61,7 @@ class StrVar:
         tk_variable.set(self.string)
 
         def _callback(*args):
-            self.string = self.tk_var.get()
-
+            self.set(self.tk_var.get())
         tk_variable.trace("w", _callback)
 
 
@@ -63,13 +70,14 @@ states = ['Показание', 'Настройка', 'Управление', '�
 
 # Класс, описывающий одно поле структуры PC-Worx
 class PhoenixField:
-    def __init__(self, name='', type='', comment='', exported=True, state=None, separate=False):
-        self.name = name                    # Иия поля
-        self.type = type                    # Тип данных
-        self.comment = comment              # Комментарий (описание события HMI)
-        self.exported = BoolVar(exported)   # Передавать переменную в Modbus
-        self.state = StrVar(state)          # Статус переменной - показание, настройка, управление, управление с ОС
-        self.separate = BoolVar(separate)   # Хранить в отдельной области карты Modbus
+    def __init__(self, name='', type='', comment='', exported=True, state=None, separate=False, callback=None):
+        self.name = name                                    # Иия поля
+        self.type = type                                    # Тип данных
+        self.comment = comment                              # Комментарий (описание события HMI)
+        self.exported = BoolVar(exported, self.changed)     # Передавать переменную в Modbus
+        self.state = StrVar(state, self.changed)            # Статус переменной
+        self.separate = BoolVar(separate, self.changed)     # Хранить в отдельной области карты Modbus
+        self.callback = callback
         # При создании поля, если не указано явного статуса, то смотрим на префикс имени
         if state is None:
             name = name.lower()
@@ -87,6 +95,10 @@ class PhoenixField:
 
     def __hash__(self):
         return self.name.__hash__()
+
+    def changed(self):
+        if self.callback is not None:
+            self.callback.__call__()
 
     def merge_with(self, other):
         self.type = other.type
@@ -119,15 +131,22 @@ class PhoenixField:
 
 # Класс, описывающий структуру PC-Worx. Содержит список полей PhoenixField
 class PhoenixStruct:
-    def __init__(self, name='', fields=None):
+    def __init__(self, name='', fields=None, callback=None):
         self.name = name
+        self.callback = callback
         if fields is not None:
             self.fields = fields
+            for field in fields:
+                field.callback = self.changed
         else:
             self.fields = list()
 
     def __eq__(self, other):
         return self.name == other.name
+
+    def changed(self):
+        if self.callback is not None:
+            self.callback.__call__()
 
     # Метод слияния двух структур
     def merge_with(self, other):
@@ -148,6 +167,7 @@ class PhoenixStruct:
         for field in self.fields:
             other_field = other.fields[other.fields.index(field)]
             field.merge_with(other_field)
+            field.callback = self.changed
         return self
 
     # Метод сортировки полей данной структуры для вывода в таблицу
@@ -173,17 +193,30 @@ class PhoenixStruct:
             new_field = PhoenixField()
             new_field.deserialize(field_node)
             self.fields.append(new_field)
+            new_field.callback = self.changed
             field_node = field_node.nextSibling
 
 
 # Класс, описывающий проект. Содержит список структур PC-Worx
 class Project:
-    def __init__(self, filename=None):
+    def __init__(self, filename=None, callback=None):
         self.structs = list()
         self.loaded_ok = False
         self.filename = None
+        self.modified = False
+        self.callback = callback
         if filename is not None and filename != '':
             self.loaded_ok = self.load(filename)
+            self.modified = not self.loaded_ok
+        self.notify()
+
+    def changed(self):
+        self.modified = True
+        self.notify()
+
+    def notify(self):
+        if self.callback is not None:
+            self.callback.__call__()
 
     # Метод загрузки проекта из файла
     def load(self, filename):
@@ -202,6 +235,7 @@ class Project:
             new_struct = PhoenixStruct()
             new_struct.deserialize(node)
             self.structs.append(new_struct)
+            new_struct.callback = self.changed
             node = node.nextSibling
         self.filename = filename
         return True
@@ -218,6 +252,8 @@ class Project:
         f.write(doc.toprettyxml())
         f.close()
         self.filename = filename
+        self.modified = False
+        self.notify()
 
     # Метод, анализирующий входной текст text
     def analyze_input(self, text):
@@ -227,14 +263,17 @@ class Project:
             # для разбиения данной структуры на поля и распознание атрибутов
             new_struct = self.analyze_struct(struct)
             new_struct.sort()
+            new_struct.callback = self.changed
             if new_struct in self.structs:
                 # Обработка дубликатов (структур с одинаковым именем)
                 if messagebox.askyesno('Внимание',
                                        'Обнаружен дубликат структуры ' + new_struct.name + '. Произвести слияние?'):
                     i = self.structs.index(new_struct)
                     self.structs[i] = self.structs[i].merge_with(new_struct)
+                    self.modified = True
             else:
                 self.structs.append(new_struct)
+                self.modified = True
         self.structs.sort(key=lambda s: s.name)
 
     # Метод, анализирующий отдельную структуру из пары pair

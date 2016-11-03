@@ -8,7 +8,7 @@ from project import Project
 # Главный класс приложения - реализует окно верхнего уровня
 # с меню и компонентом для закладок
 class Application(Frame):
-    title = 'Генератор модбаса v0.1'
+    title = 'Генератор модбаса v0.2'
 
     # Конструктор класса
     def __init__(self, master=None):
@@ -36,7 +36,8 @@ class Application(Frame):
         self.file_menu = Menu(main_menu, tearoff=0)
         self.file_menu.add_command(label='Новый проект', command=self.new_project)
         self.file_menu.add_command(label='Открыть проект...', command=self.open_project)
-        self.file_menu.add_command(label='Сохранить проект...', command=self.save_project)
+        self.file_menu.add_command(label='Сохранить проект', command=self.save_project)
+        self.file_menu.add_command(label='Сохранить проект как...', command=self.save_project_as)
         self.file_menu.add_separator()
         self.file_menu.add_command(label='Выйти', command=self.master.quit)
         main_menu.add_cascade(label='Файл', menu=self.file_menu)
@@ -79,7 +80,7 @@ class Application(Frame):
             if not messagebox.askyesno('Внимание', 'Все существующие данные будут утеряны. Продолжить?',
                                        parent=self.master):
                 return
-            self.project = Project()
+            self.project = Project(callback=self.update_title)
         self.analyze_add()
 
     # Анализировать с добавлением, при обнаружении дубликатов будет выполнено слияние
@@ -93,36 +94,53 @@ class Application(Frame):
     def update_wnd_state(self):
         if self.project is None:
             self.file_menu.entryconfigure(2, state=DISABLED)
+            self.file_menu.entryconfigure(3, state=DISABLED)
             self.proj_menu.entryconfigure(0, state=DISABLED)
             self.proj_menu.entryconfigure(1, state=DISABLED)
             if self.notebook is not None:
                 self.notebook.destroy()
                 self.notebook = None
-            self.master.title(self.title)
         else:
             self.file_menu.entryconfigure(2, state=NORMAL)
+            self.file_menu.entryconfigure(3, state=NORMAL)
             self.proj_menu.entryconfigure(0, state=NORMAL)
             self.proj_menu.entryconfigure(1, state=NORMAL)
             if self.notebook is not None:
                 self.notebook.destroy()
             self.create_notebook()
+        self.update_title()
+
+    # Метод для обновления заголовка окна
+    def update_title(self):
+        if self.project is None:
+            self.master.title(self.title)
+        else:
             # Добавляем имя файла в заголовок окна
             if self.project.filename is None:
-                self.master.title('<Без имени> - ' + self.title)
+                self.master.title('<Без имени>* - ' + self.title)
+            elif self.project.modified:
+                self.master.title(self.project.filename + '* - ' + self.title)
             else:
                 self.master.title(self.project.filename + ' - ' + self.title)
 
     # Новый проект
     def new_project(self):
-        if self.project is not None:
-            self.save_project()
-        self.project = Project()
+        if self.project is not None and self.project.modified:
+            result = messagebox.askyesnocancel('Внимание', 'Сохранить текущий проект?', parent=self.master)
+            if result is None:
+                return
+            elif result:
+                self.save_project()
+        self.project = Project(callback=self.update_title)
         self.update_wnd_state()
 
     # Открыть проект
     def open_project(self):
-        if self.project is not None:
-            if messagebox.askyesno('Внимание','Сохранить текущий проект?', parent=self.master):
+        if self.project is not None and self.project.modified:
+            result = messagebox.askyesnocancel('Внимание','Сохранить текущий проект?', parent=self.master)
+            if result is None:
+                return
+            elif result:
                 self.save_project()
         filename = filedialog.askopenfilename(title='Открыть проект',
                                               multiple=False,
@@ -130,7 +148,7 @@ class Application(Frame):
                                               defaultextension='.mbgp',
                                               filetypes=[('Проекты генератора модбаса', '.mbgp'), ('Все файлы', '.*')])
         if filename != '':
-            self.project = Project(filename)
+            self.project = Project(filename, self.update_title)
             if not self.project.loaded_ok:
                 self.project = None
             else:
@@ -138,6 +156,13 @@ class Application(Frame):
 
     # Сохранить проект
     def save_project(self):
+        if self.project.filename is not None:
+            self.project.save(self.project.filename)
+        else:
+            self.save_project_as()
+
+    # Сохранить проект как
+    def save_project_as(self):
         filename = filedialog.asksaveasfilename(title='Сохранить проект',
                                                 confirmoverwrite=True,
                                                 parent=self.master,
@@ -154,12 +179,12 @@ app = Application(master=root)
 
 # Колбэк для запроса на сохранение
 def _quit_callback():
-    if app.project is not None:
+    if app.project is not None and app.project.modified:
         result = messagebox.askyesnocancel('Внимание', 'Сохранить проект перед выходом?', parent=root)
         if result is None:
             # Отмена выхода
             return
-        if result:
+        elif result:
             app.save_project()
     root.destroy()
 

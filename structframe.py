@@ -47,7 +47,7 @@ class TableRow(Frame):
         cb = Checkbutton(self, width=width, height=0, bg=self.bg_color, pady=0)
         var = BooleanVar(cb)
         cb.config(variable=var)
-        cb.grid(column=col, row=0, sticky=(E))
+        cb.grid(column=col, row=0, sticky=E)
         self.controls.append(cb)
         return var
 
