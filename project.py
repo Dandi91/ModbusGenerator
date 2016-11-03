@@ -1,4 +1,6 @@
 import re
+from xml.dom.minidom import getDOMImplementation, parse, Node
+from xml.parsers.expat import ExpatError
 from tkinter import messagebox
 
 
@@ -15,6 +17,13 @@ class BoolVar:
     def get(self):
         return self.bool
 
+    def set_str(self, value):
+        self.bool = value == '1'
+
+    def get_str(self):
+        if self.bool: return '1'
+        else: return '0'
+
     def assign(self, tk_variable):
         self.tk_var = tk_variable
         tk_variable.set(self.bool)
@@ -22,6 +31,16 @@ class BoolVar:
         def _callback(*args):
             self.bool = self.tk_var.get()
         tk_variable.trace("w", _callback)
+
+
+# Функция-хелпер, удаляющая пустые ноды из дерева XML
+def remove_blanks(node):
+    for x in node.childNodes:
+        if x.nodeType == Node.TEXT_NODE:
+            if x.nodeValue:
+                x.nodeValue = x.nodeValue.strip()
+        elif x.nodeType == Node.ELEMENT_NODE:
+            remove_blanks(x)
 
 
 # Класс, описывающий одно поле структуры PC-Worx
@@ -52,12 +71,39 @@ class PhoenixField:
         self.type = other.type
         self.comment = other.comment
 
+    # Метод сериализации поля в XML
+    def serialize(self, document):
+        field_node = document.createElement('field')
+        comment_node = document.createTextNode(self.comment)
+        field_node.appendChild(comment_node)
+        field_node.setAttribute('name', self.name)
+        field_node.setAttribute('type', self.type)
+        field_node.setAttribute('export', self.exported.get_str())
+        field_node.setAttribute('setting', self.is_setting.get_str())
+        field_node.setAttribute('control', self.is_control.get_str())
+        field_node.setAttribute('separate', self.is_separate.get_str())
+        return field_node
+
+    # Метод де-сериализации (загрузки) поля из XML
+    def deserialize(self, node):
+        if node.tagName != 'field': return
+        self.name = node.getAttribute('name')
+        self.type = node.getAttribute('type')
+        self.exported.set_str(node.getAttribute('export'))
+        self.is_setting.set_str(node.getAttribute('setting'))
+        self.is_control.set_str(node.getAttribute('control'))
+        self.is_separate.set_str(node.getAttribute('separate'))
+        self.comment = node.firstChild.data
+
 
 # Класс, описывающий структуру PC-Worx. Содержит список полей PhoenixField
 class PhoenixStruct:
-    def __init__(self, name='', fields=list()):
+    def __init__(self, name='', fields=None):
         self.name = name
-        self.fields = fields
+        if fields is not None:
+            self.fields = fields
+        else:
+            self.fields = list()
 
     def __eq__(self, other):
         return self.name == other.name
@@ -85,27 +131,68 @@ class PhoenixStruct:
     def sort(self):
         self.fields.sort(key=lambda f: f.name.lower())
 
+    # Метод сериализации структуры в XML
+    def serialize(self, document):
+        struct_node = document.createElement('struct')
+        struct_node.setAttribute('name', self.name)
+        for field in self.fields:
+            node = field.serialize(document)
+            struct_node.appendChild(node)
+        return struct_node
+
+    # Метод де-сериализации (загрузки) структуры из XML
+    def deserialize(self, node):
+        if node.tagName != 'struct': return
+        self.name = node.getAttribute('name')
+        field_node = node.firstChild
+        while field_node is not None:
+            new_field = PhoenixField()
+            new_field.deserialize(field_node)
+            self.fields.append(new_field)
+            field_node = field_node.nextSibling
+
 
 # Класс, описывающий проект. Содержит список структур PC-Worx
 class Project:
     def __init__(self, filename=None):
-        self.save_path = None
-        self.is_modified = False
-        self.is_ok = False
         self.structs = list()
+        self.loaded_ok = False
+        self.filename = None
         if filename is not None and filename != '':
-            self.load(filename)
-        else:
-            self.is_ok = True
+            self.loaded_ok = self.load(filename)
 
     # Метод загрузки проекта из файла
     def load(self, filename):
-        print('Loading', filename)
-        self.is_ok = True
+        try:
+            doc = parse(filename)
+        except ExpatError:
+            messagebox.showerror('Ошибка', 'Некорректный файл для обработки')
+            return False
+        root = doc.documentElement
+        if root.tagName != 'mbgen_doc': return False
+        remove_blanks(root)
+        root.normalize()
+        node = root.firstChild
+        while node is not None:
+            new_struct = PhoenixStruct()
+            new_struct.deserialize(node)
+            self.structs.append(new_struct)
+            node = node.nextSibling
+        self.filename = filename
+        return True
 
     # Метод сохранения проекта в файл
     def save(self, filename):
-        print('Saving', filename)
+        impl = getDOMImplementation()
+        doc = impl.createDocument(None, 'mbgen_doc', None)
+        root = doc.documentElement
+        for struct in self.structs:
+            node = struct.serialize(doc)
+            root.appendChild(node)
+        f = open(filename, 'w', encoding='utf-8')
+        f.write(doc.toprettyxml())
+        f.close()
+        self.filename = filename
 
     # Метод, анализирующий входной текст text
     def analyze_input(self, text):

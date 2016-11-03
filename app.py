@@ -8,12 +8,12 @@ from structframe import *
 # Главный класс приложения - реализует окно верхнего уровня
 # с меню и компонентом для закладок
 class Application(Frame):
+    title = 'Генератор модбаса v0.1'
 
     # Конструктор класса
     def __init__(self, master=None):
         Frame.__init__(self, master)
         self.grid(column=0, row=0, sticky=(N, S, W, E))
-        master.title('Генератор модбаса v0.1')
         top_win = self.winfo_toplevel()
         top_win.rowconfigure(0, weight=1)
         top_win.columnconfigure(0, weight=1)
@@ -80,9 +80,11 @@ class Application(Frame):
 
     # Анализировать заново, будет создан новый проект взамен существующего
     def analyze_anew(self):
-        if not messagebox.askyesno('Внимание', 'Все существующие данные будут утеряны. Продолжить?', parent=self.master):
-            return
-        self.project = Project()
+        if len(self.project.structs) > 0:
+            if not messagebox.askyesno('Внимание', 'Все существующие данные будут утеряны. Продолжить?',
+                                       parent=self.master):
+                return
+            self.project = Project()
         self.analyze_add()
 
     # Анализировать с добавлением, при обнаружении дубликатов будет выполнено слияние
@@ -107,6 +109,7 @@ class Application(Frame):
             if self.notebook is not None:
                 self.notebook.destroy()
                 self.notebook = None
+            self.master.title(self.title)
         else:
             self.file_menu.entryconfigure(2, state=NORMAL)
             self.edit_menu.entryconfigure(0, state=NORMAL)
@@ -114,6 +117,11 @@ class Application(Frame):
             if self.notebook is not None:
                 self.notebook.destroy()
             self.create_notebook()
+            # Добавляем имя файла в заголовок окна
+            if self.project.filename is None:
+                self.master.title('<Без имени> - ' + self.title)
+            else:
+                self.master.title(self.project.filename + ' - ' + self.title)
 
     # Новый проект
     def new_project(self):
@@ -125,7 +133,8 @@ class Application(Frame):
     # Открыть проект
     def open_project(self):
         if self.project is not None:
-            self.save_project()
+            if messagebox.askyesno('Внимание','Сохранить текущий проект?', parent=self.master):
+                self.save_project()
         filename = filedialog.askopenfilename(title='Открыть проект',
                                               multiple=False,
                                               parent=self.master,
@@ -133,15 +142,13 @@ class Application(Frame):
                                               filetypes=[('Проекты генератора модбаса', '.mbgp'), ('Все файлы', '.*')])
         if filename != '':
             self.project = Project(filename)
-            self.update_wnd_state()
+            if not self.project.loaded_ok:
+                self.project = None
+            else:
+                self.update_wnd_state()
 
     # Сохранить проект
     def save_project(self):
-        if self.project.is_modified:
-            if not messagebox.askyesno('Внимание','Сохранить текущий проект?', parent=self.master):
-                return
-        else:
-            return
         filename = filedialog.asksaveasfilename(title='Сохранить проект',
                                                 confirmoverwrite=True,
                                                 parent=self.master,
@@ -155,5 +162,19 @@ class Application(Frame):
 root = Tk()
 # Создание экземпляра приложения
 app = Application(master=root)
+
+# Колбэк для запроса на сохранение
+def _quit_callback():
+    if app.project is not None:
+        result = messagebox.askyesnocancel('Внимание', 'Сохранить проект перед выходом?', parent=root)
+        if result is None:
+            # Отмена выхода
+            return
+        if result:
+            app.save_project()
+    root.destroy()
+
+# Регистрируем колбэк
+root.protocol('WM_DELETE_WINDOW', _quit_callback)
 # Вход в цикл обработки сообщений
 app.mainloop()
