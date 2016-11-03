@@ -1,6 +1,5 @@
 from tkinter.ttk import *
 from tkinter import filedialog
-from tkinter import messagebox
 from inputframe import *
 from structframe import *
 

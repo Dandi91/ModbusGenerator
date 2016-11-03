@@ -1,12 +1,11 @@
 from tkinter import *
 from scrollableframe import VerticalScrolledFrame
-from project import *
 
 
 # Вкладка для отображения структур PC-Worx
 class StructFrame(Frame):
 
-    def __init__(self, master=None, struct=PhoenixStruct()):
+    def __init__(self, master, struct):
         Frame.__init__(self, master)
         self.grid(column=0, row=0, sticky=(N, S, W, E))
         self.rowconfigure(0, weight=1)
@@ -43,7 +42,7 @@ class StructFrame(Frame):
         self.num_rows += 1
 
     # Метод добавления строки для поля field структуры
-    def append_row(self, field=PhoenixField()):
+    def append_row(self, field):
         # Список всех компонентов в данной строке
         row_controls = list()
         # Чередование цветов строк

@@ -21,8 +21,10 @@ class BoolVar:
         self.bool = value == '1'
 
     def get_str(self):
-        if self.bool: return '1'
-        else: return '0'
+        if self.bool:
+            return '1'
+        else:
+            return '0'
 
     def assign(self, tk_variable):
         self.tk_var = tk_variable
@@ -69,7 +71,8 @@ class PhoenixField:
 
     def merge_with(self, other):
         self.type = other.type
-        self.comment = other.comment
+        if other.comment != '':
+            self.comment = other.comment
 
     # Метод сериализации поля в XML
     def serialize(self, document):
@@ -86,7 +89,8 @@ class PhoenixField:
 
     # Метод де-сериализации (загрузки) поля из XML
     def deserialize(self, node):
-        if node.tagName != 'field': return
+        if node.tagName != 'field':
+            return
         self.name = node.getAttribute('name')
         self.type = node.getAttribute('type')
         self.exported.set_str(node.getAttribute('export'))
@@ -116,8 +120,10 @@ class PhoenixStruct:
         deleted = self_set.difference(other_set)
         if len(added) > 0 or len(deleted) > 0:
             text = ''
-            for i in added: text += 'Добавлено поле ' + i.name + '\n'
-            for i in deleted: text += 'Удалено поле ' + i.name + '\n'
+            for i in added:
+                text += 'Добавлено поле ' + i.name + '\n'
+            for i in deleted:
+                text += 'Удалено поле ' + i.name + '\n'
             if messagebox.askyesno('Найдены отличия', text + '\nВнести изменения?'):
                 self.fields = list(other_set.intersection(self_set))
                 self.fields.extend(list(added))
@@ -142,7 +148,8 @@ class PhoenixStruct:
 
     # Метод де-сериализации (загрузки) структуры из XML
     def deserialize(self, node):
-        if node.tagName != 'struct': return
+        if node.tagName != 'struct':
+            return
         self.name = node.getAttribute('name')
         field_node = node.firstChild
         while field_node is not None:
@@ -169,7 +176,8 @@ class Project:
             messagebox.showerror('Ошибка', 'Некорректный файл для обработки')
             return False
         root = doc.documentElement
-        if root.tagName != 'mbgen_doc': return False
+        if root.tagName != 'mbgen_doc':
+            return False
         remove_blanks(root)
         root.normalize()
         node = root.firstChild
@@ -213,7 +221,8 @@ class Project:
         self.structs.sort(key=lambda s: s.name)
 
     # Метод, анализирующий отдельную структуру из пары pair
-    def analyze_struct(self, pair):
+    @staticmethod
+    def analyze_struct(pair):
         # Первый параметр пары - имя структуры
         struct_name = pair[0].strip()
         field_array = list()
