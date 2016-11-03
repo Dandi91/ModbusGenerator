@@ -1,7 +1,8 @@
 from tkinter.ttk import *
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from inputframe import *
 from structframe import *
+from project import Project
 
 
 # Главный класс приложения - реализует окно верхнего уровня
@@ -22,7 +23,6 @@ class Application(Frame):
 
         self.project = None
         self.file_menu = None
-        self.edit_menu = None
         self.proj_menu = None
         self.notebook = None
         self.input_frame = None
@@ -40,10 +40,6 @@ class Application(Frame):
         self.file_menu.add_separator()
         self.file_menu.add_command(label='Выйти', command=self.master.quit)
         main_menu.add_cascade(label='Файл', menu=self.file_menu)
-
-        self.edit_menu = Menu(main_menu, tearoff=0)
-        self.edit_menu.add_command(label='Исправить кодировку', command=self.fix_encoding)
-        main_menu.add_cascade(label='Правка', menu=self.edit_menu)
 
         self.proj_menu = Menu(main_menu, tearoff=0)
         self.proj_menu.add_command(label='Анализировать структуры заново', command=self.analyze_anew)
@@ -92,27 +88,21 @@ class Application(Frame):
         self.project.analyze_input(text)
         self.update_tabs()
 
-    # Исправление кодировки. По сути уже не нужно, так как кодировка исправляется автоматически
-    # при вставке текста в поле ввода структур
-    def fix_encoding(self):
-        if self.input_frame is not None:
-            self.input_frame.fix_encoding()
-
     # Процедура обновления состояний меню и окна
     # Запрещает вызов некоторых меню, если нет открытого проекта
     def update_wnd_state(self):
         if self.project is None:
             self.file_menu.entryconfigure(2, state=DISABLED)
-            self.edit_menu.entryconfigure(0, state=DISABLED)
             self.proj_menu.entryconfigure(0, state=DISABLED)
+            self.proj_menu.entryconfigure(1, state=DISABLED)
             if self.notebook is not None:
                 self.notebook.destroy()
                 self.notebook = None
             self.master.title(self.title)
         else:
             self.file_menu.entryconfigure(2, state=NORMAL)
-            self.edit_menu.entryconfigure(0, state=NORMAL)
             self.proj_menu.entryconfigure(0, state=NORMAL)
+            self.proj_menu.entryconfigure(1, state=NORMAL)
             if self.notebook is not None:
                 self.notebook.destroy()
             self.create_notebook()

@@ -35,33 +35,52 @@ class BoolVar:
         tk_variable.trace("w", _callback)
 
 
-# Функция-хелпер, удаляющая пустые ноды из дерева XML
-def remove_blanks(node):
-    for x in node.childNodes:
-        if x.nodeType == Node.TEXT_NODE:
-            if x.nodeValue:
-                x.nodeValue = x.nodeValue.strip()
-        elif x.nodeType == Node.ELEMENT_NODE:
-            remove_blanks(x)
+# Класс-хелпер, обеспечивающий синхронизацию переменных граф. интерфейса
+# с внутренним представлением полей структур
+class StrVar:
+    def __init__(self, value=''):
+        self.string = value
+        self.tk_var = None
+
+    def set(self, value):
+        self.string = value
+
+    def get(self):
+        return self.string
+
+    def assign(self, tk_variable):
+        self.tk_var = tk_variable
+        tk_variable.set(self.string)
+
+        def _callback(*args):
+            self.string = self.tk_var.get()
+
+        tk_variable.trace("w", _callback)
+
+
+states = ['Показание', 'Настройка', 'Управление', 'Управление с изменением']
 
 
 # Класс, описывающий одно поле структуры PC-Worx
 class PhoenixField:
-    def __init__(self, name='', type='', comment='', exported=True, is_setting=None,
-                 is_control=False, is_separate=False):
-        self.name = name
-        self.type = type
-        self.comment = comment
-        self.exported = BoolVar(exported)
-        self.is_setting = BoolVar(is_setting)
-        self.is_control = BoolVar(is_control)
-        self.is_separate = BoolVar(is_separate)
-        # При создании поля, если не указано явного признака "настройка",
-        # то смотрим на префикс имени
-        if is_setting is None:
-            self.is_setting.set(name.startswith('s_'))
+    def __init__(self, name='', type='', comment='', exported=True, state=None, separate=False):
+        self.name = name                    # Иия поля
+        self.type = type                    # Тип данных
+        self.comment = comment              # Комментарий (описание события HMI)
+        self.exported = BoolVar(exported)   # Передавать переменную в Modbus
+        self.state = StrVar(state)          # Статус переменной - показание, настройка, управление, управление с ОС
+        self.separate = BoolVar(separate)   # Хранить в отдельной области карты Modbus
+        # При создании поля, если не указано явного статуса, то смотрим на префикс имени
+        if state is None:
+            name = name.lower()
+            if name.startswith('s_') or name.startswith('set_'):
+                self.state.set(states[1])
+            elif name.startswith('mnl_'):
+                self.state.set(states[2])
+            else:
+                self.state.set(states[0])
         else:
-            self.is_setting.set(is_setting)
+            self.state.set(state)
 
     def __eq__(self, other):
         return self.name == other.name
@@ -82,9 +101,8 @@ class PhoenixField:
         field_node.setAttribute('name', self.name)
         field_node.setAttribute('type', self.type)
         field_node.setAttribute('export', self.exported.get_str())
-        field_node.setAttribute('setting', self.is_setting.get_str())
-        field_node.setAttribute('control', self.is_control.get_str())
-        field_node.setAttribute('separate', self.is_separate.get_str())
+        field_node.setAttribute('state', self.state.get())
+        field_node.setAttribute('separate', self.separate.get_str())
         return field_node
 
     # Метод де-сериализации (загрузки) поля из XML
@@ -94,9 +112,8 @@ class PhoenixField:
         self.name = node.getAttribute('name')
         self.type = node.getAttribute('type')
         self.exported.set_str(node.getAttribute('export'))
-        self.is_setting.set_str(node.getAttribute('setting'))
-        self.is_control.set_str(node.getAttribute('control'))
-        self.is_separate.set_str(node.getAttribute('separate'))
+        self.state.set(node.getAttribute('state'))
+        self.separate.set_str(node.getAttribute('separate'))
         self.comment = node.firstChild.data
 
 
@@ -178,7 +195,7 @@ class Project:
         root = doc.documentElement
         if root.tagName != 'mbgen_doc':
             return False
-        remove_blanks(root)
+        self.remove_blanks(root)
         root.normalize()
         node = root.firstChild
         while node is not None:
@@ -242,3 +259,13 @@ class Project:
                 field_array.append(PhoenixField(res.group(1), res.group(2), comment))
         # Создаем и возвращаем новую структуру
         return PhoenixStruct(struct_name, field_array)
+
+    @staticmethod
+    # Функция-хелпер, удаляющая пустые ноды из дерева XML
+    def remove_blanks(node):
+        for x in node.childNodes:
+            if x.nodeType == Node.TEXT_NODE:
+                if x.nodeValue:
+                    x.nodeValue = x.nodeValue.strip()
+            elif x.nodeType == Node.ELEMENT_NODE:
+                Project.remove_blanks(x)
