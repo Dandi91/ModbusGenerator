@@ -83,7 +83,9 @@ class StructFrame(Frame):
         # Поле для ввода названий экземпляров структуры
         lb = Label(self, text='Экземпляры:')
         lb.grid(row=0, column=0, sticky=E, padx=3)
-        instances = Entry(self, text='введите список экземпляров структуры')
+        text = StringVar()
+        instances = Entry(self, textvariable=text)
+        struct.instances_str.assign(text)
         instances.grid(row=0, column=1, columnspan=5, sticky=(W, E), padx=4, pady=4)
         # Вставляем заголовок таблицы
         self.insert_header()

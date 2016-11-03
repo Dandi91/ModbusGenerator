@@ -129,11 +129,13 @@ class PhoenixField:
         self.comment = node.firstChild.data
 
 
-# Класс, описывающий структуру PC-Worx. Содержит список полей PhoenixField
+# Класс, описывающий структуру PC-Worx. Содержит список полей PhoenixField и список экземпляров данной структуры
 class PhoenixStruct:
     def __init__(self, name='', fields=None, callback=None):
         self.name = name
         self.callback = callback
+        self.instances_str = StrVar(callback=self.parse_instances)
+        self.instance_list = list()
         if fields is not None:
             self.fields = fields
             for field in fields:
@@ -147,6 +149,11 @@ class PhoenixStruct:
     def changed(self):
         if self.callback is not None:
             self.callback.__call__()
+
+    def parse_instances(self):
+        string = self.instances_str.get()
+        self.instance_list = string.replace(',', ' ').split()
+        self.changed()
 
     # Метод слияния двух структур
     def merge_with(self, other):
@@ -178,6 +185,10 @@ class PhoenixStruct:
     def serialize(self, document):
         struct_node = document.createElement('struct')
         struct_node.setAttribute('name', self.name)
+        instances_node = document.createElement('instances')
+        instances_text = document.createTextNode(','.join(self.instance_list))
+        instances_node.appendChild(instances_text)
+        struct_node.appendChild(instances_node)
         for field in self.fields:
             node = field.serialize(document)
             struct_node.appendChild(node)
@@ -188,7 +199,15 @@ class PhoenixStruct:
         if node.tagName != 'struct':
             return
         self.name = node.getAttribute('name')
-        field_node = node.firstChild
+        instances_node = node.firstChild
+        if instances_node.tagName == 'instances':
+            if instances_node.hasChildNodes():
+                text = instances_node.firstChild.data.replace(',,', ',')
+                self.instance_list = text.split(',')
+                self.instances_str.set(','.join(self.instance_list))
+            field_node = instances_node.nextSibling
+        else:
+            field_node = instances_node
         while field_node is not None:
             new_field = PhoenixField()
             new_field.deserialize(field_node)
