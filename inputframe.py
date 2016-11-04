@@ -13,7 +13,6 @@ def fix_encoding(text):
 
 # Вкладка для ввода текста структур
 class InputFrame(Frame):
-
     def __init__(self, master=None):
         Frame.__init__(self, master)
         self.grid(column=0, row=0, sticky=(N, S, W, E))

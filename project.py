@@ -1,68 +1,21 @@
 import re
 from xml.dom.minidom import getDOMImplementation, parse, Node
 from xml.parsers.expat import ExpatError
-from tkinter import messagebox
+from tkinter import messagebox, BooleanVar, StringVar
 
 
 # Класс-хелпер, обеспечивающий синхронизацию переменных граф. интерфейса
 # с внутренним представлением полей структур
-class BoolVar:
-    def __init__(self, value=False, callback=None):
-        self.bool = value
-        self.tk_var = None
+class FieldVar:
+    def __init__(self, value, tk_var, callback=None):
+        self.var = tk_var
+        self.var.set(value)
+        self.var.trace("w", self.__callback__)
         self.callback = callback
 
-    def set(self, value):
-        if value != self.bool:
-            self.bool = value
-            if self.callback is not None:
-                self.callback.__call__()
-
-    def get(self):
-        return self.bool
-
-    def set_str(self, value):
-        self.set(value == '1')
-
-    def get_str(self):
-        if self.bool:
-            return '1'
-        else:
-            return '0'
-
-    def assign(self, tk_variable):
-        self.tk_var = tk_variable
-        tk_variable.set(self.bool)
-
-        def _callback(*args):
-            self.set(self.tk_var.get())
-        tk_variable.trace("w", _callback)
-
-
-# Класс-хелпер, обеспечивающий синхронизацию переменных граф. интерфейса
-# с внутренним представлением полей структур
-class StrVar:
-    def __init__(self, value='', callback=None):
-        self.string = value
-        self.tk_var = None
-        self.callback = callback
-
-    def set(self, value):
-        if value != self.string:
-            self.string = value
-            if self.callback is not None:
-                self.callback.__call__()
-
-    def get(self):
-        return self.string
-
-    def assign(self, tk_variable):
-        self.tk_var = tk_variable
-        tk_variable.set(self.string)
-
-        def _callback(*args):
-            self.set(self.tk_var.get())
-        tk_variable.trace("w", _callback)
+    def __callback__(self, *args):
+        if self.callback is not None:
+            self.callback.__call__()
 
 
 states = ['Показание', 'Настройка', 'Управление', 'Управление с изменением']
@@ -71,24 +24,24 @@ states = ['Показание', 'Настройка', 'Управление', '�
 # Класс, описывающий одно поле структуры PC-Worx
 class PhoenixField:
     def __init__(self, name='', type='', comment='', exported=True, state=None, separate=False, callback=None):
-        self.name = name                                    # Иия поля
-        self.type = type                                    # Тип данных
-        self.comment = comment                              # Комментарий (описание события HMI)
-        self.exported = BoolVar(exported, self.changed)     # Передавать переменную в Modbus
-        self.state = StrVar(state, self.changed)            # Статус переменной
-        self.separate = BoolVar(separate, self.changed)     # Хранить в отдельной области карты Modbus
+        self.name = name                                                    # Иия поля
+        self.type = type                                                    # Тип данных
+        self.comment = comment                                              # Комментарий (описание события HMI)
+        self.exported = FieldVar(exported, BooleanVar(), self.changed)      # Передавать переменную в Modbus
+        self.state = FieldVar(state, StringVar(), self.changed)             # Статус переменной
+        self.separate = FieldVar(separate, BooleanVar(), self.changed)      # Хранить в отдельной области карты Modbus
         self.callback = callback
         # При создании поля, если не указано явного статуса, то смотрим на префикс имени
         if state is None:
             name = name.lower()
             if name.startswith('s_') or name.startswith('set_'):
-                self.state.set(states[1])
+                self.state.var.set(states[1])
             elif name.startswith('mnl_'):
-                self.state.set(states[2])
+                self.state.var.set(states[2])
             else:
-                self.state.set(states[0])
+                self.state.var.set(states[0])
         else:
-            self.state.set(state)
+            self.state.var.set(state)
 
     def __eq__(self, other):
         return self.name == other.name
@@ -112,9 +65,9 @@ class PhoenixField:
         field_node.appendChild(comment_node)
         field_node.setAttribute('name', self.name)
         field_node.setAttribute('type', self.type)
-        field_node.setAttribute('export', self.exported.get_str())
-        field_node.setAttribute('state', self.state.get())
-        field_node.setAttribute('separate', self.separate.get_str())
+        field_node.setAttribute('export', str(self.exported.var.get()))
+        field_node.setAttribute('state', self.state.var.get())
+        field_node.setAttribute('separate', str(self.separate.var.get()))
         return field_node
 
     # Метод де-сериализации (загрузки) поля из XML
@@ -123,9 +76,9 @@ class PhoenixField:
             return
         self.name = node.getAttribute('name')
         self.type = node.getAttribute('type')
-        self.exported.set_str(node.getAttribute('export'))
-        self.state.set(node.getAttribute('state'))
-        self.separate.set_str(node.getAttribute('separate'))
+        self.exported.var.set(bool(node.getAttribute('export')))
+        self.state.var.set(node.getAttribute('state'))
+        self.separate.var.set(bool(node.getAttribute('separate')))
         self.comment = node.firstChild.data
 
 
@@ -134,7 +87,7 @@ class PhoenixStruct:
     def __init__(self, name='', fields=None, callback=None):
         self.name = name
         self.callback = callback
-        self.instances_str = StrVar(callback=self.parse_instances)
+        self.instances_str = FieldVar('', StringVar(), self.parse_instances)
         self.instance_list = list()
         if fields is not None:
             self.fields = fields
@@ -151,7 +104,7 @@ class PhoenixStruct:
             self.callback.__call__()
 
     def parse_instances(self):
-        string = self.instances_str.get()
+        string = self.instances_str.var.get()
         self.instance_list = string.replace(',', ' ').split()
         self.changed()
 
@@ -204,7 +157,7 @@ class PhoenixStruct:
             if instances_node.hasChildNodes():
                 text = instances_node.firstChild.data.replace(',,', ',')
                 self.instance_list = text.split(',')
-                self.instances_str.set(','.join(self.instance_list))
+                self.instances_str.var.set(','.join(self.instance_list))
             field_node = instances_node.nextSibling
         else:
             field_node = instances_node

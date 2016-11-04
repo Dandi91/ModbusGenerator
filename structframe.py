@@ -6,7 +6,6 @@ from project import states
 
 # Строка таблицы, описывающей поля структуры
 class TableRow(Frame):
-
     def __init__(self, master, field, color):
         Frame.__init__(self, master)
         self.grid(column=0, row=0, sticky=(N, S, W, E))
@@ -24,13 +23,11 @@ class TableRow(Frame):
 
         # Создаем чекбоксы, присваивая их переменные настройкам поля
         # для динамического обновления данных
-        field.exported.assign(self.create_cb(3, 8))
-        field.separate.assign(self.create_cb(5, 3))
+        self.create_cb(field.exported.var, 3, 8)
+        self.create_cb(field.separate.var, 5, 3)
 
         # Создаем выпадающий список с вариантами статуса
-        var = StringVar()
-        field.state.assign(var)
-        cb = Combobox(self, textvariable=var, values=states, width=25)
+        cb = Combobox(self, textvariable=field.state.var, values=states, width=25)
         cb.state(['readonly'])
         cb.grid(column=4, row=0, sticky=(W, E))
 
@@ -43,13 +40,11 @@ class TableRow(Frame):
 
     # Функция-хелпер для создания чекбокса в колонке col шириной width
     # Возвращает переменную, значение которой синхронизировано с состоянием чекбокса
-    def create_cb(self, col, width=0):
+    def create_cb(self, var, col, width=0):
         cb = Checkbutton(self, width=width, height=0, bg=self.bg_color, pady=0)
-        var = BooleanVar(cb)
         cb.config(variable=var)
         cb.grid(column=col, row=0, sticky=E)
         self.controls.append(cb)
-        return var
 
     # Функция-колбэк, вызываемая при наведении мыши на строку
     def _mark_row(self, event):
@@ -66,7 +61,6 @@ class TableRow(Frame):
 
 # Вкладка для отображения структур PC-Worx
 class StructFrame(Frame):
-
     def __init__(self, master, struct):
         Frame.__init__(self, master)
         self.grid(column=0, row=0, sticky=(N, S, W, E))
@@ -83,9 +77,7 @@ class StructFrame(Frame):
         # Поле для ввода названий экземпляров структуры
         lb = Label(self, text='Экземпляры:')
         lb.grid(row=0, column=0, sticky=E, padx=3)
-        text = StringVar()
-        instances = Entry(self, textvariable=text)
-        struct.instances_str.assign(text)
+        instances = Entry(self, textvariable=struct.instances_str.var)
         instances.grid(row=0, column=1, columnspan=5, sticky=(W, E), padx=4, pady=4)
         # Вставляем заголовок таблицы
         self.insert_header()
@@ -97,7 +89,7 @@ class StructFrame(Frame):
     def insert_header(self):
 
         # Функция-хелпер, создает надпись с текстом text в колонке col шириной width
-        def header_lb(col, text, width = 0):
+        def header_lb(col, text, width=0):
             lb = Label(self, text=text, width=width)
             lb.grid(column=col, row=1, sticky=(W, E))
 

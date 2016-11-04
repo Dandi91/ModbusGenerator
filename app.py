@@ -5,6 +5,18 @@ from structframe import *
 from project import Project
 
 
+# Колбэк для запроса на сохранение
+def quit_callback():
+    if app.project is not None and app.project.modified:
+        result = messagebox.askyesnocancel('Внимание', 'Сохранить проект перед выходом?', parent=root)
+        if result is None:
+            # Отмена выхода
+            return
+        elif result:
+            app.save_project()
+    root.destroy()
+
+
 # Главный класс приложения - реализует окно верхнего уровня
 # с меню и компонентом для закладок
 class Application(Frame):
@@ -39,7 +51,7 @@ class Application(Frame):
         self.file_menu.add_command(label='Сохранить проект', command=self.save_project)
         self.file_menu.add_command(label='Сохранить проект как...', command=self.save_project_as)
         self.file_menu.add_separator()
-        self.file_menu.add_command(label='Выйти', command=self.master.quit)
+        self.file_menu.add_command(label='Выйти', command=quit_callback)
         main_menu.add_cascade(label='Файл', menu=self.file_menu)
 
         self.proj_menu = Menu(main_menu, tearoff=0)
@@ -176,19 +188,7 @@ class Application(Frame):
 root = Tk()
 # Создание экземпляра приложения
 app = Application(master=root)
-
-# Колбэк для запроса на сохранение
-def _quit_callback():
-    if app.project is not None and app.project.modified:
-        result = messagebox.askyesnocancel('Внимание', 'Сохранить проект перед выходом?', parent=root)
-        if result is None:
-            # Отмена выхода
-            return
-        elif result:
-            app.save_project()
-    root.destroy()
-
 # Регистрируем колбэк
-root.protocol('WM_DELETE_WINDOW', _quit_callback)
+root.protocol('WM_DELETE_WINDOW', quit_callback)
 # Вход в цикл обработки сообщений
 app.mainloop()
