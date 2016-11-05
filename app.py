@@ -3,6 +3,7 @@ from tkinter import filedialog, messagebox
 from inputframe import *
 from structframe import *
 from project import Project
+from pcmbgenerator import PCModbusGenerator
 
 
 # Колбэк для запроса на сохранение
@@ -57,6 +58,8 @@ class Application(Frame):
         self.proj_menu = Menu(main_menu, tearoff=0)
         self.proj_menu.add_command(label='Анализировать структуры заново', command=self.analyze_anew)
         self.proj_menu.add_command(label='Анализировать и добавить', command=self.analyze_add)
+        self.proj_menu.add_separator()
+        self.proj_menu.add_command(label='Генерировать', command=self.generate)
         main_menu.add_cascade(label='Проект', menu=self.proj_menu)
 
         self.master.config(menu=main_menu)
@@ -182,6 +185,10 @@ class Application(Frame):
                                                 filetypes=[('Проекты генератора модбаса', '.mbgp'), ('Все файлы', '.*')])
         if filename != '':
             self.project.save(filename)
+
+    # Генерировать код
+    def generate(self):
+        gen = PCModbusGenerator(self.project)
 
 
 # Инициализация библиотеки Tkinter

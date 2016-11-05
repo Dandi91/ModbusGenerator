@@ -2,6 +2,7 @@ import re
 from xml.dom.minidom import getDOMImplementation, parse, Node
 from xml.parsers.expat import ExpatError
 from tkinter import messagebox, BooleanVar, StringVar
+from enum import Enum
 
 
 # Класс-хелпер, обеспечивающий синхронизацию переменных граф. интерфейса
@@ -19,6 +20,14 @@ class FieldVar:
 
 
 states = ['Показание', 'Настройка', 'Управление', 'Управление с изменением']
+class FieldState(Enum):
+    indication = 0
+    setting = 1
+    control = 2
+    control_change = 3
+
+    def str(self):
+        return states[self.value]
 
 
 # Класс, описывающий одно поле структуры PC-Worx
@@ -35,16 +44,19 @@ class PhoenixField:
         if state is None:
             name = name.lower()
             if name.startswith('s_') or name.startswith('set_'):
-                self.state.var.set(states[1])
+                self.state.var.set(FieldState.setting.str())
             elif name.startswith('mnl_'):
-                self.state.var.set(states[2])
+                self.state.var.set(FieldState.control.str())
             else:
-                self.state.var.set(states[0])
+                self.state.var.set(FieldState.indication.str())
         else:
             self.state.var.set(state)
 
     def __eq__(self, other):
         return self.name == other.name
+
+    def __repr__(self):
+        return '{}: {} // {}'.format(self.name, self.type, self.comment)
 
     def __hash__(self):
         return self.name.__hash__()
@@ -98,6 +110,9 @@ class PhoenixStruct:
 
     def __eq__(self, other):
         return self.name == other.name
+
+    def __repr__(self):
+        return self.name
 
     def changed(self):
         if self.callback is not None:
