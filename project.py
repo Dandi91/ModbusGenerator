@@ -1,7 +1,7 @@
 import re
 from xml.dom.minidom import getDOMImplementation, parse, Node
 from xml.parsers.expat import ExpatError
-from tkinter import messagebox, BooleanVar, StringVar
+from tkinter import messagebox, StringVar
 from enum import Enum
 
 
@@ -19,12 +19,15 @@ class FieldVar:
             self.callback.__call__()
 
 
-states = ['Показание', 'Настройка', 'Управление', 'Управление с изменением']
+states = ['Не передавать', 'Показание', 'Настройка', 'Управление', 'Управление с изменением']
+
+
 class FieldState(Enum):
-    indication = 0
-    setting = 1
-    control = 2
-    control_change = 3
+    dont_trasmit = 0
+    indication = 1
+    setting = 2
+    control = 3
+    control_change = 4
 
     def str(self):
         return states[self.value]
@@ -32,13 +35,11 @@ class FieldState(Enum):
 
 # Класс, описывающий одно поле структуры PC-Worx
 class PhoenixField:
-    def __init__(self, name='', type='', comment='', exported=True, state=None, separate=False, callback=None):
+    def __init__(self, name='', field_type='', comment='', state=None, callback=None):
         self.name = name                                                    # Иия поля
-        self.type = type                                                    # Тип данных
+        self.type = field_type                                              # Тип данных
         self.comment = comment                                              # Комментарий (описание события HMI)
-        self.exported = FieldVar(exported, BooleanVar(), self.changed)      # Передавать переменную в Modbus
         self.state = FieldVar(state, StringVar(), self.changed)             # Статус переменной
-        self.separate = FieldVar(separate, BooleanVar(), self.changed)      # Хранить в отдельной области карты Modbus
         self.callback = callback
         # При создании поля, если не указано явного статуса, то смотрим на префикс имени
         if state is None:
@@ -53,7 +54,10 @@ class PhoenixField:
             self.state.var.set(state)
 
     def __eq__(self, other):
-        return self.name == other.name
+        if isinstance(other, str):
+            return self.name == other
+        else:
+            return self.name == other.name
 
     def __repr__(self):
         return '{}: {} // {}'.format(self.name, self.type, self.comment)
@@ -77,9 +81,7 @@ class PhoenixField:
         field_node.appendChild(comment_node)
         field_node.setAttribute('name', self.name)
         field_node.setAttribute('type', self.type)
-        field_node.setAttribute('export', str(self.exported.var.get()))
         field_node.setAttribute('state', self.state.var.get())
-        field_node.setAttribute('separate', str(self.separate.var.get()))
         return field_node
 
     # Метод де-сериализации (загрузки) поля из XML
@@ -88,9 +90,7 @@ class PhoenixField:
             return
         self.name = node.getAttribute('name')
         self.type = node.getAttribute('type')
-        self.exported.var.set(bool(node.getAttribute('export')))
         self.state.var.set(node.getAttribute('state'))
-        self.separate.var.set(bool(node.getAttribute('separate')))
         self.comment = node.firstChild.data
 
 
@@ -109,7 +109,10 @@ class PhoenixStruct:
             self.fields = list()
 
     def __eq__(self, other):
-        return self.name == other.name
+        if isinstance(other, str):
+            return self.name == other
+        else:
+            return self.name == other.name
 
     def __repr__(self):
         return self.name
@@ -117,6 +120,12 @@ class PhoenixStruct:
     def changed(self):
         if self.callback is not None:
             self.callback.__call__()
+
+    def length(self):
+        length = 0
+        for field in self.fields:
+            length += field.length()
+        return length
 
     def parse_instances(self):
         string = self.instances_str.var.get()
@@ -188,6 +197,7 @@ class PhoenixStruct:
 class Project:
     def __init__(self, filename=None, callback=None):
         self.structs = list()
+        self.singles = list()
         self.loaded_ok = False
         self.filename = None
         self.modified = False
@@ -217,12 +227,19 @@ class Project:
             return False
         self.remove_blanks(root)
         root.normalize()
-        node = root.firstChild
+        struct_node = root.getElementsByTagName('structs')[0]
+        singles_node = root.getElementsByTagName('singles')[0]
+        node = struct_node.firstChild
         while node is not None:
-            new_struct = PhoenixStruct()
+            new_struct = PhoenixStruct(callback=self.changed)
             new_struct.deserialize(node)
             self.structs.append(new_struct)
-            new_struct.callback = self.changed
+            node = node.nextSibling
+        node = singles_node.firstChild
+        while node is not None:
+            new_field = PhoenixField(callback=self.changed)
+            new_field.deserialize(node)
+            self.singles.append(new_field)
             node = node.nextSibling
         self.filename = filename
         return True
@@ -232,9 +249,16 @@ class Project:
         impl = getDOMImplementation()
         doc = impl.createDocument(None, 'mbgen_doc', None)
         root = doc.documentElement
+        struct_node = doc.createElement('structs')
+        root.appendChild(struct_node)
         for struct in self.structs:
             node = struct.serialize(doc)
-            root.appendChild(node)
+            struct_node.appendChild(node)
+        singles_node = doc.createElement('singles')
+        root.appendChild(singles_node)
+        for single in self.singles:
+            node = single.serialize(doc)
+            singles_node.appendChild(node)
         f = open(filename, 'w', encoding='utf-8')
         f.write(doc.toprettyxml())
         f.close()
@@ -244,6 +268,8 @@ class Project:
 
     # Метод, анализирующий входной текст text
     def analyze_input(self, text):
+        text = self.fix_encoding(text)
+        text = self.analyze_singles(text)
         raw_structs = re.findall('\s(\S+?)\s*:\s*STRUCT(.+?)END_STRUCT;.*?', text, re.MULTILINE and re.DOTALL)
         for struct in raw_structs:
             # Для каждой найденной структуры вызывается отдельный метод
@@ -263,8 +289,30 @@ class Project:
                 self.modified = True
         self.structs.sort(key=lambda s: s.name)
 
-    # Метод, анализирующий отдельную структуру из пары pair
+    # Метод анализирующий отдельные переменные
+    def analyze_singles(self, text):
+        lines = text.strip().splitlines()
+        result = list()
+        for line in lines:
+            line = line.strip()
+            if line.find('VAR_GLOBAL') > -1:
+                fields = re.search('^(\S+)\s+(\S+)\s+VAR_GLOBAL\s+(.*)$', line)
+                var_name = fields.group(1)
+                if var_name in self.singles:
+                    if messagebox.askyesno('Внимание',
+                                           'Глобальная переменная {} уже существует. Заменить новой?'.format(var_name)):
+                        self.singles.remove(var_name)
+                    else:
+                        continue
+                self.singles.append(PhoenixField(fields.group(1), fields.group(2), fields.group(3)))
+                self.modified = True
+            else:
+                result.append(line)
+        self.singles.sort(key=lambda f: f.name)
+        return '\n'.join(result)
+
     @staticmethod
+    # Метод, анализирующий отдельную структуру из пары pair
     def analyze_struct(pair):
         # Первый параметр пары - имя структуры
         struct_name = pair[0].strip()
@@ -295,3 +343,13 @@ class Project:
                     x.nodeValue = x.nodeValue.strip()
             elif x.nodeType == Node.ELEMENT_NODE:
                 Project.remove_blanks(x)
+
+    @staticmethod
+    # Функция преобразования кракозябр из PC-Worx'а
+    # Если во входной строке попадаются корректные русские символы,
+    # то возвращает исходный текст вне зависимости от наличия кракозябр в нем
+    def fix_encoding(text):
+        try:
+            return text.encode('cp1252').decode('cp1251')
+        except UnicodeEncodeError:
+            return text
