@@ -1,7 +1,7 @@
 import re
 from xml.dom.minidom import getDOMImplementation, parse, Node
 from xml.parsers.expat import ExpatError
-from tkinter import messagebox, StringVar
+from tkinter import messagebox, StringVar, BooleanVar, IntVar
 from enum import Enum
 
 
@@ -14,9 +14,15 @@ class FieldVar:
         self.var.trace("w", self.__callback__)
         self.callback = callback
 
+    def __call__(self, value=None):
+        if value is not None:
+            self.var.set(value)
+        else:
+            return self.var.get()
+
     def __callback__(self, *args):
         if self.callback is not None:
-            self.callback.__call__()
+            self.callback()
 
 
 states = ['Не передавать', 'Показание', 'Настройка', 'Управление', 'Управление с изменением']
@@ -45,13 +51,13 @@ class PhoenixField:
         if state is None:
             name = name.lower()
             if name.startswith('s_') or name.startswith('set_'):
-                self.state.var.set(FieldState.setting.str())
+                self.state(FieldState.setting.str())
             elif name.startswith('mnl_'):
-                self.state.var.set(FieldState.control.str())
+                self.state(FieldState.control.str())
             else:
-                self.state.var.set(FieldState.indication.str())
+                self.state(FieldState.indication.str())
         else:
-            self.state.var.set(state)
+            self.state(state)
 
     def __eq__(self, other):
         if isinstance(other, str):
@@ -67,7 +73,7 @@ class PhoenixField:
 
     def changed(self):
         if self.callback is not None:
-            self.callback.__call__()
+            self.callback()
 
     def merge_with(self, other):
         self.type = other.type
@@ -81,7 +87,7 @@ class PhoenixField:
         field_node.appendChild(comment_node)
         field_node.setAttribute('name', self.name)
         field_node.setAttribute('type', self.type)
-        field_node.setAttribute('state', self.state.var.get())
+        field_node.setAttribute('state', self.state())
         return field_node
 
     # Метод де-сериализации (загрузки) поля из XML
@@ -90,7 +96,7 @@ class PhoenixField:
             return
         self.name = node.getAttribute('name')
         self.type = node.getAttribute('type')
-        self.state.var.set(node.getAttribute('state'))
+        self.state(node.getAttribute('state'))
         if node.firstChild is not None:
             self.comment = node.firstChild.data
 
@@ -120,7 +126,7 @@ class PhoenixStruct:
 
     def changed(self):
         if self.callback is not None:
-            self.callback.__call__()
+            self.callback()
 
     def length(self):
         length = 0
@@ -129,7 +135,7 @@ class PhoenixStruct:
         return length
 
     def parse_instances(self):
-        string = self.instances_str.var.get()
+        string = self.instances_str()
         self.instance_list = string.replace(',', ' ').split()
         self.changed()
 
@@ -182,7 +188,7 @@ class PhoenixStruct:
             if instances_node.hasChildNodes():
                 text = instances_node.firstChild.data.replace(',,', ',')
                 self.instance_list = text.split(',')
-                self.instances_str.var.set(','.join(self.instance_list))
+                self.instances_str(','.join(self.instance_list))
             field_node = instances_node.nextSibling
         else:
             field_node = instances_node
@@ -203,12 +209,28 @@ class GeneratorSettings:
         'webvisit': 'Генерировать файл для импорта в WebVisit'
     }
 
-    def __init__(self):
-        self.pcworx_modbus = True
-        self.weintek_tags = True
-        self.weintek_events = True
-        self.pcworx_structures = True
-        self.webvisit = True
+    def __init__(self, callback):
+        # Настройки вывода
+        self.pcworx_modbus = FieldVar(True, BooleanVar(), callback)
+        self.weintek_tags = FieldVar(True, BooleanVar(), callback)
+        self.weintek_events = FieldVar(True, BooleanVar(), callback)
+        self.pcworx_structures = FieldVar(True, BooleanVar(), callback)
+        self.webvisit = FieldVar(True, BooleanVar(), callback)
+        # Общие настройки
+        self.mb_arr_name = FieldVar('MB_Data_HMI', StringVar(), callback)
+        self.mb_cursor_name = FieldVar('MBcurrPos', StringVar(), callback)
+        self.plc_name = FieldVar('PLC', StringVar(), callback)
+        self.start_address = FieldVar(1, IntVar(), callback)
+        self.gen_save = FieldVar(False, BooleanVar(), callback)
+        self.gen_save_word = FieldVar(0, IntVar(), callback)
+        self.gen_save_bit = FieldVar(0, IntVar(), callback)
+        self.gen_cancel = FieldVar(False, BooleanVar(), callback)
+        self.gen_cancel_word = FieldVar(0, IntVar(), callback)
+        self.gen_cancel_bit = FieldVar(1, IntVar(), callback)
+        # Пути файлов для экспорта
+        self.weitek_tag_file = FieldVar('', StringVar(), callback)
+        self.weitek_event_file = FieldVar('', StringVar(), callback)
+        self.webvisit_file = FieldVar('', StringVar(), callback)
 
 
 # Класс, описывающий проект. Содержит список структур PC-Worx, а также настройки генератора
@@ -220,8 +242,8 @@ class Project:
         self.filename = None
         self.modified = False
         self.callback = callback
-        self.save_gen_settings = False
-        self.generator_settings = GeneratorSettings()
+        self.save_gen_settings = FieldVar(False, BooleanVar(), callback)
+        self.generator_settings = GeneratorSettings(self.changed)
         if filename is not None and filename != '':
             self.loaded_ok = self.load(filename)
             self.modified = not self.loaded_ok
@@ -233,7 +255,7 @@ class Project:
 
     def notify(self):
         if self.callback is not None:
-            self.callback.__call__()
+            self.callback()
 
     # Метод загрузки проекта из файла
     def load(self, filename):

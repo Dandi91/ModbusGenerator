@@ -200,9 +200,9 @@ class Skeleton:
 
     def generate_code(self, tag_list, do_loop, lists_to_append, is_indication_section):
         # Строковые шаблоны для удобства
-        advance_template = '{0} := {0} + '.format(self.generator.mb_cursor_name) + '{};'
+        advance_template = '{0} := {0} + '.format(self.generator.settings.mb_cursor_name()) + '{};'
         advance_by_one = ' ' + advance_template.format(1)
-        ptr_jump = self.generator.mb_cursor_name + ' := {};'
+        ptr_jump = self.generator.settings.mb_cursor_name() + ' := {};'
 
         def append_advance(addr_diff):
             if addr_diff > 0 and do_loop:
@@ -230,19 +230,19 @@ class Skeleton:
                 append_advance(addr_diff)
                 type_name = tag.field.type.lower()
                 if do_loop:
-                    cursor = self.generator.mb_cursor_name
+                    cursor = self.generator.settings.mb_cursor_name()
                     custom_advance = advance_by_one
                     second_cursor = cursor
                 else:
                     cursor = str(tag.address)
                     custom_advance = ''
                     second_cursor = str(tag.address + 1)
-                params = (self.generator.mb_arr_name, cursor, tag.bit, struct_name,
+                params = (self.generator.settings.mb_arr_name(), cursor, tag.bit, struct_name,
                           tag.field.name, custom_advance, second_cursor)
                 to_mb = templates_to_mb[type_name].format(*params)
                 to_plc = templates_to_plc[type_name].format(*params)
                 if is_indication_section:
-                    field_state = tag.field.state.var.get()
+                    field_state = tag.field.state()
                     if field_state == FieldState.control.str():
                         self.indication.append(to_plc)
                     elif field_state == FieldState.control_change.str():
@@ -262,7 +262,7 @@ class Skeleton:
         settings = list()
         indication = list()
         for tag in self.tag_list:
-            if tag.field.state.var.get() == FieldState.setting.str():
+            if tag.field.state() == FieldState.setting.str():
                 settings.append(tag)
             else:
                 indication.append(tag)
@@ -346,18 +346,16 @@ class Skeleton:
 class Generator:
     def __init__(self, project):
         self.project = project
-        self.mb_arr_name = 'MB_Data_HMI'
-        self.mb_cursor_name = 'MBcurrPos'
-        self.plc_name = 'PLC'
+        self.settings = project.generator_settings
         self.addr_spaces = list()
         self.skeletons = list()
 
     def generate_all(self):
-        address = 1
+        address = self.settings.start_address()
         structs = list(self.project.structs)
         structs.append(self.project.singles)
         for struct in structs:
-            fields = FieldSet(struct, lambda f: f.state.var.get() != FieldState.dont_trasmit.str())
+            fields = FieldSet(struct, lambda f: f.state() != FieldState.dont_trasmit.str())
             if isinstance(struct, PhoenixStruct):
                 instance_list = struct.instance_list
             else:
@@ -382,7 +380,7 @@ class Generator:
 
     def generate_locals(self):
         code_vars = 'i\tINT\tVAR\tСчетчик для циклов\n'
-        code_vars += '{}\tINT\tVAR\tУказатель позиции регистра Modbus\n'.format(self.mb_cursor_name)
+        code_vars += '{}\tINT\tVAR\tУказатель позиции регистра Modbus\n'.format(self.settings.mb_cursor_name())
         types = ''
         for skeleton in self.skeletons:
             if len(skeleton.phoenix_vars) > 0:
@@ -416,4 +414,4 @@ class Generator:
         for addr_space in self.addr_spaces:
             for instance in addr_space.instances:
                 for tag in instance:
-                    return tag.generate_hmi_tag(self.plc_name)
+                    return tag.generate_hmi_tag(self.settings.plc_name())
