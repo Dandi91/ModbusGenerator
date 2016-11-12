@@ -2,9 +2,9 @@ from tkinter.ttk import *
 from tkinter import filedialog, messagebox
 from notebook import AppNotebook
 from outputframe import *
-from structframe import *
 from project import Project
 from generator import Generator
+from generatemodal import GeneratorDialog
 
 
 # Колбэк для запроса на сохранение
@@ -200,18 +200,17 @@ class Application(Frame):
     # Генерировать код
     def generate(self, event=None):
         if self.project is not None:
+            if not self.project.save_gen_settings:
+                GeneratorDialog(self, self.project)
             gen = Generator(self.project)
             gen.generate_all()
             # Добавить вкладки с выводом
             last_tab = len(self.notebook.tabs()) - 1
-            if self.notebook.tab(last_tab, option='text') == 'Вывод':
+            if self.notebook.tab(last_tab, option='text') == OutputFrame.tab_name:
                 self.notebook.forget(last_tab)
-            output = OutputFrame(self.notebook, gen.get_mb_code())
-            self.notebook.add(output, text='Вывод', padding='4px')
+            output = OutputFrame(self.notebook, gen)
+            self.notebook.add(output, text=output.tab_name, padding='4px')
             self.notebook.select(len(self.notebook.tabs()) - 1)
-            locals, types = gen.generate_locals()
-            print(locals)
-            print(types)
 
     def paste(self, event):
         if self.project is not None:
