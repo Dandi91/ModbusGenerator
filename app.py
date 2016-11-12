@@ -67,6 +67,7 @@ class Application(Frame):
         self.proj_menu = Menu(main_menu, tearoff=0)
         self.proj_menu.add_command(label='Генерировать', command=self.generate, accelerator='Ctrl+G')
         self.bind_all('<Control-g>', self.generate)
+        self.proj_menu.add_command(label='Настройки генерации...', command=self.generation_settings)
         main_menu.add_cascade(label='Проект', menu=self.proj_menu)
 
         self.struct_menu = Menu(main_menu, tearoff=0)
@@ -114,7 +115,6 @@ class Application(Frame):
             self.file_menu.entryconfigure(3, state=DISABLED)
             self.proj_menu.entryconfigure(0, state=DISABLED)
             self.proj_menu.entryconfigure(1, state=DISABLED)
-            self.proj_menu.entryconfigure(3, state=DISABLED)
             self.struct_menu.entryconfigure(0, state=DISABLED)
             self.struct_menu.entryconfigure(1, state=DISABLED)
             self.struct_menu.entryconfigure(2, state=DISABLED)
@@ -123,7 +123,6 @@ class Application(Frame):
             self.file_menu.entryconfigure(3, state=NORMAL)
             self.proj_menu.entryconfigure(0, state=NORMAL)
             self.proj_menu.entryconfigure(1, state=NORMAL)
-            self.proj_menu.entryconfigure(3, state=NORMAL)
             self.struct_menu.entryconfigure(0, state=NORMAL)
             if self.notebook is not None:
                 if self.notebook.can_edit_tab:
@@ -223,6 +222,9 @@ class Application(Frame):
         if self.project is not None:
             self.project.analyze_input(self.clipboard_get())
             self.update_wnd_state()
+
+    def generation_settings(self, event=None):
+        GeneratorDialog(self, self.project, False)
 
 
 # Инициализация библиотеки Tkinter

@@ -3,13 +3,14 @@ from tkinter import *
 
 # Базовый класс для создания модального диалога
 class Dialog(Toplevel):
-    def __init__(self, parent, title=None):
+    def __init__(self, parent, title=None, has_cancel=True):
         Toplevel.__init__(self, parent)
         self.transient(parent)
         if title:
             self.title(title)
         self.parent = parent
         self.result = False
+        self.has_cancel = has_cancel
         body = Frame(self)
         self.initial_focus = self.body(body)
         body.pack(padx=5, pady=5)
@@ -37,10 +38,11 @@ class Dialog(Toplevel):
         box = Frame(self)
         w = Button(box, text="OK", width=10, command=self.ok, default=ACTIVE)
         w.pack(side=LEFT, padx=5, pady=5)
-        w = Button(box, text="Отмена", width=10, command=self.cancel)
-        w.pack(side=LEFT, padx=5, pady=5)
         self.bind("<Return>", self.ok)
-        self.bind("<Escape>", self.cancel)
+        if self.has_cancel:
+            w = Button(box, text="Отмена", width=10, command=self.cancel)
+            w.pack(side=LEFT, padx=5, pady=5)
+            self.bind("<Escape>", self.cancel)
         box.pack()
 
     # standard button semantics
@@ -67,7 +69,7 @@ class Dialog(Toplevel):
 
 
 class GeneratorDialog(Dialog):
-    def __init__(self, parent, project):
+    def __init__(self, parent, project, has_cancel=True):
         self.project = project
         self.settings = project.settings
         self.save_settings = project.settings.save_gen_settings.var
@@ -76,7 +78,7 @@ class GeneratorDialog(Dialog):
         self.setting_list.sort()
         for setting in self.setting_list:
             self.variables[setting] = getattr(self.settings, setting).var
-        Dialog.__init__(self, parent, 'Настройки генератора')
+        Dialog.__init__(self, parent, 'Настройки генератора', has_cancel)
 
     def body(self, master):
         current_row = 0
@@ -89,6 +91,6 @@ class GeneratorDialog(Dialog):
         for setting in self.setting_list:
             create_cb(self.settings.labels[setting], self.variables[setting])
             current_row += 1
-        create_cb('Больше не спрашивать при генерации', self.save_settings).grid(sticky=SW)
+        create_cb('Не спрашивать о настройках при генерации', self.save_settings).grid(sticky=SW)
         master.rowconfigure(current_row, minsize='30px')
         return None
