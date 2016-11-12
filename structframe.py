@@ -122,7 +122,7 @@ class TableRow(Frame):
         popup.add_command(label='Добавить переменную', command=self.add)
         popup.add_command(label='Удалить переменную', command=self.delete)
         try:
-            popup.tk_popup(event.x_root + 78, event.y_root + 11, 0)
+            popup.tk_popup(event.x_root + 82, event.y_root + 11, 0)
         finally:
             popup.grab_release()
 
@@ -184,9 +184,10 @@ class TableFrame(Frame):
         self.fill_in()
 
     def delete(self, field):
-        self.fields.remove(field)
-        self.struct_callback()
-        self.fill_in()
+        if messagebox.askyesno('Внимание', 'Вы действительно хотите удалить переменную \'{}\'?'.format(field.name)):
+            self.fields.remove(field)
+            self.struct_callback()
+            self.fill_in()
 
     def update_rows(self):
         duplicates = list()
@@ -214,7 +215,7 @@ class TableFrame(Frame):
         popup = Menu(self, tearoff=0)
         popup.add_command(label='Добавить переменную', command=self.add)
         try:
-            popup.tk_popup(event.x_root + 78, event.y_root + 11, 0)
+            popup.tk_popup(event.x_root + 82, event.y_root + 11, 0)
         finally:
             popup.grab_release()
 

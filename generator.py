@@ -186,8 +186,7 @@ class Skeleton:
             if len(indication) > 0:
                 self.indication.insert(1, loop_begin)
                 self.indication.append(loop_end)
-
-        print(self.format_code('\n'.join(self.indication)))
+        self.generate_locals()
 
     def generate_code(self, tag_list, do_loop, lists_to_append, is_indication_section):
         # Строковые шаблоны для удобства
@@ -264,15 +263,15 @@ class Skeleton:
         old_name = self.shorten_var_name(old_name)
         if indexed:
             comment = 'Массив старых значений ' + field_name
-            arr_type_name = 'ArrOf' + type_name + self.struct.name
+            arr_type_name = 'ArrOf' + type_name.capitalize() + self.struct.name
             self.phoenix_vars.append(var_decl_template.format(old_name, arr_type_name, comment))
             if arr_type_name not in self.phoenix_type_names:
                 self.phoenix_type_names.append(arr_type_name)
-                new_array = array_decl_template.format(arr_type_name, self.num_instances, type_name, comment)
+                new_array = array_decl_template.format(arr_type_name, self.num_instances, type_name.upper(), comment)
                 self.phoenix_type_decls.append(new_array)
             old_name += '[i]'
         else:
-            new_var = var_decl_template.format(old_name, type_name, 'Старое значение ' + field_name)
+            new_var = var_decl_template.format(old_name, type_name.upper(), 'Старое значение ' + field_name)
             self.phoenix_vars.append(new_var)
         return old_name
 
@@ -355,10 +354,29 @@ class Generator:
                 self.addr_spaces.append(addr_space)
                 self.skeletons.append(Skeleton(self, struct, addr_space))
 
-        for addr_space in self.addr_spaces:
-            for instance in addr_space.instances:
-                for tag in instance:
-                    print(tag.generate_hmi_tag(self.plc_name))
+    def generate_inout(self):
+        in_code = ''
+        out_code = ''
+        for struct in self.project.structs:
+            if len(struct.instance_list) > 1:
+                index = 1
+                for instance in struct.instance_list:
+                    in_code += '{0}[{1}] := {2};\n'.format(Skeleton.get_array_name(struct), index, instance)
+                    out_code += '{2} := {0}[{1}];\n'.format(Skeleton.get_array_name(struct), index, instance)
+                    index += 1
+        return in_code, out_code
+
+    def generate_locals(self):
+        code_vars = 'i\tINT\tVAR\tСчетчик для циклов\n'
+        code_vars += '{}\tINT\tVAR\tУказатель позиции регистра Modbus\n'.format(self.mb_cursor_name)
+        types = ''
+        for skeleton in self.skeletons:
+            if len(skeleton.phoenix_vars) > 0:
+                code_vars += '\n'.join(skeleton.phoenix_vars) + '\n'
+            if len(skeleton.phoenix_type_decls) > 0:
+                types += '\n'.join(skeleton.phoenix_type_decls) + '\n'
+        types = 'TYPE\n' + types + 'END_TYPE\n'
+        return code_vars, types
 
     def get_mb_code(self):
         restore = list()
@@ -370,7 +388,18 @@ class Generator:
             indication.extend(skeleton.indication)
         restore.insert(0, 'if Restore then')
         restore.append('end_if;')
-        result = '\n'.join(restore) + '\n'
+        result = '(* --------- Восстановление настроек в Modbus после перезапуска ПЛК --------- *)\n'
+        result += '\n'.join(restore) + '\n'
+        result += '\n\n(* --------------------- Прием настроек в ПЛК из Modbus --------------------- *)\n'
         result += '\n'.join(settings) + '\n'
-        result += '\n'.join(indication)
+        result += '\n\n(* -------------------- Работа с показаниями и командами -------------------- *)\n'
+        result += '\n'.join(indication) + '\n'
+        in_code, out_code = self.generate_inout()
+        result = in_code + '\n\n' + result + '\n\n' + out_code
         return Skeleton.format_code(result)
+
+    def get_hmi_tags(self):
+        for addr_space in self.addr_spaces:
+            for instance in addr_space.instances:
+                for tag in instance:
+                    return tag.generate_hmi_tag(self.plc_name)

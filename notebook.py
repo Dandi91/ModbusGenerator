@@ -1,6 +1,8 @@
 from tkinter import *
+from tkinter import messagebox
 from tkinter.ttk import Notebook
 from structframe import *
+from settingsframe import SettingsFrame
 from project import PhoenixStruct
 
 
@@ -31,6 +33,9 @@ class AppNotebook(Notebook):
             # Удалить все закладки
             while len(self.tabs()) > 0:
                 self.forget(0)
+            # Добавить вкладку с настройками
+            settings_frame = SettingsFrame(self, self.project)
+            self.add(settings_frame, text=settings_frame.tab_name, padding='4px')
             # Добавить нужные согласно project
             singles_frame = SinglesFrame(self, self.project)
             self.add(singles_frame, text=singles_frame.tab_name, padding='4px')
@@ -72,6 +77,9 @@ class AppNotebook(Notebook):
             if self.tab(index, option='text') not in self.project.structs:
                 return
             left, right = self.get_tab_position(index)
+            if self.tab_editor is not None:
+                self.tab_editor.destroy()
+                self.tab_editor = None
             entry = Entry(self.master, textvariable=self.editor_var)
             entry.bind('<Return>', self.confirm_editing)
             entry.bind('<Escape>', self.end_editing)
@@ -85,8 +93,14 @@ class AppNotebook(Notebook):
         if self.project is not None:
             index = self.index('current')
             if index > 0:
-                self.project.structs.pop(index - 1)
-                self.forget(index)
+                tab_name = self.tab(index, option='text')
+                if messagebox.askyesno('Внимание',
+                                       'Вы действительно хотите удалить структуру \'{}\'?'.format(tab_name)):
+                    struct_index = self.project.structs.index(tab_name)
+                    self.project.structs.pop(struct_index)
+                    self.project.modified = True
+                    self.master.update_title()
+                    self.forget(index)
 
     def end_editing(self, event=None):
         if self.tab_editor is not None:

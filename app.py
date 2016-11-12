@@ -96,10 +96,14 @@ class Application(Frame):
                 self.notebook.destroy()
                 self.notebook = None
         else:
+            selected_tab = None
             if self.notebook is not None:
+                selected_tab = self.notebook.index('current')
                 self.notebook.destroy()
             self.notebook = AppNotebook(self, self.project)
             self.notebook.on_tab_change = self.update_menu_state
+            if selected_tab is not None:
+                self.notebook.select(selected_tab)
         self.update_title()
         self.update_menu_state()
 
@@ -204,7 +208,10 @@ class Application(Frame):
                 self.notebook.forget(last_tab)
             output = OutputFrame(self.notebook, gen.get_mb_code())
             self.notebook.add(output, text='Вывод', padding='4px')
-            self.notebook.select(last_tab)
+            self.notebook.select(len(self.notebook.tabs()) - 1)
+            locals, types = gen.generate_locals()
+            print(locals)
+            print(types)
 
     def paste(self, event):
         if self.project is not None:
