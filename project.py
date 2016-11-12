@@ -211,6 +211,7 @@ class GeneratorSettings:
 
     def __init__(self, callback):
         # Настройки вывода
+        self.save_gen_settings = FieldVar(False, BooleanVar(), callback)
         self.pcworx_modbus = FieldVar(True, BooleanVar(), callback)
         self.weintek_tags = FieldVar(True, BooleanVar(), callback)
         self.weintek_events = FieldVar(True, BooleanVar(), callback)
@@ -228,9 +229,36 @@ class GeneratorSettings:
         self.gen_cancel_word = FieldVar(0, IntVar(), callback)
         self.gen_cancel_bit = FieldVar(1, IntVar(), callback)
         # Пути файлов для экспорта
-        self.weitek_tag_file = FieldVar('', StringVar(), callback)
-        self.weitek_event_file = FieldVar('', StringVar(), callback)
+        self.weintek_tag_file = FieldVar('', StringVar(), callback)
+        self.weintek_event_file = FieldVar('', StringVar(), callback)
         self.webvisit_file = FieldVar('', StringVar(), callback)
+
+    # Метод сериализации настроек в XML
+    def serialize(self, document):
+        settings_node = document.createElement('settings')
+        for attr_name in dir(self):
+            attr = getattr(self, attr_name)
+            if isinstance(attr, FieldVar):
+                new_node = document.createElement('setting')
+                new_node.setAttribute('name', attr_name)
+                node_text = document.createTextNode(str(attr()))
+                new_node.appendChild(node_text)
+                settings_node.appendChild(new_node)
+        return settings_node
+
+    # Метод де-сериализации (загрузки) настроек из XML
+    def deserialize(self, node):
+        if node.tagName != 'settings':
+            return
+        setting = node.firstChild
+        while setting is not None:
+            if setting.tagName == 'setting':
+                attr_name = setting.getAttribute('name')
+                if hasattr(self, attr_name):
+                    attr = getattr(self, attr_name)
+                    if isinstance(attr, FieldVar) and setting.hasChildNodes():
+                        attr(setting.firstChild.data)
+            setting = setting.nextSibling
 
 
 # Класс, описывающий проект. Содержит список структур PC-Worx, а также настройки генератора
@@ -242,7 +270,6 @@ class Project:
         self.filename = None
         self.modified = False
         self.callback = callback
-        self.save_gen_settings = FieldVar(False, BooleanVar(), callback)
         self.generator_settings = GeneratorSettings(self.changed)
         if filename is not None and filename != '':
             self.loaded_ok = self.load(filename)
@@ -271,6 +298,7 @@ class Project:
         root.normalize()
         struct_node = root.getElementsByTagName('structs')[0]
         singles_node = root.getElementsByTagName('singles')[0]
+        settings_node = root.getElementsByTagName('settings')[0]
         node = struct_node.firstChild
         while node is not None:
             new_struct = PhoenixStruct(callback=self.changed)
@@ -283,6 +311,7 @@ class Project:
             new_field.deserialize(node)
             self.singles.append(new_field)
             node = node.nextSibling
+        self.generator_settings.deserialize(settings_node)
         self.filename = filename
         return True
 
@@ -301,6 +330,7 @@ class Project:
         for single in self.singles:
             node = single.serialize(doc)
             singles_node.appendChild(node)
+        root.appendChild(self.generator_settings.serialize(doc))
         f = open(filename, 'w', encoding='utf-8')
         f.write(doc.toprettyxml())
         f.close()

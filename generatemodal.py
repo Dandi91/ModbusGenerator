@@ -70,7 +70,7 @@ class GeneratorDialog(Dialog):
     def __init__(self, parent, project):
         self.project = project
         self.gen_settings = project.generator_settings
-        self.save_settings = project.save_gen_settings.var
+        self.save_settings = project.gen_settings.save_gen_settings.var
         self.variables = dict()
         self.setting_list = list(self.gen_settings.labels.keys())
         self.setting_list.sort()
