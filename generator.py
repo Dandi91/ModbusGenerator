@@ -34,6 +34,16 @@ templates_hmi = {
     'word':  ('4x', 'Undesignated'),
     'dword': ('4x', '32-bit UNSIGNED')
 }
+# Приращение курсора при относительной адресации
+cursor_advance = {
+    'bool':  0,
+    'real':  1,
+    'int':   1,
+    'dint':  1,
+    'time':  1,
+    'word':  1,
+    'dword': 1
+}
 # Приращение курсора при абсолютной адресации
 type_size = {
     'bool':  0,
@@ -193,6 +203,16 @@ class Skeleton:
         advance_template = '{0} := {0} + '.format(self.generator.mb_cursor_name) + '{};'
         advance_by_one = ' ' + advance_template.format(1)
         ptr_jump = self.generator.mb_cursor_name + ' := {};'
+
+        def append_advance(addr_diff):
+            if addr_diff > 0 and do_loop:
+                # Разница из-за 32-битных типов и приращений курсора внутри шаблонов
+                relative_diff = type_size[type_name] - cursor_advance[type_name]
+                addr_diff -= relative_diff
+                advance = advance_template.format(addr_diff)
+                for l in lists_to_append:
+                    l.append(advance)
+
         # Определить имя структуры
         struct_name = ''
         if do_loop:
@@ -207,10 +227,7 @@ class Skeleton:
             for tag in tag_list:
                 addr_diff = tag.address - prev_address
                 prev_address = tag.address
-                if addr_diff > 0 and do_loop:
-                    advance = advance_template.format(addr_diff)
-                    for l in lists_to_append:
-                        l.append(advance)
+                append_advance(addr_diff)
                 type_name = tag.field.type.lower()
                 if do_loop:
                     cursor = self.generator.mb_cursor_name
@@ -239,10 +256,7 @@ class Skeleton:
                     self.settings.append(to_plc)
             # Определить сдвиг между экземплярами структур
             addr_diff = self.address_space.single_length - (prev_address - first_address)
-            if addr_diff > 0 and do_loop:
-                advance = advance_template.format(addr_diff)
-                for l in lists_to_append:
-                    l.append(advance)
+            append_advance(addr_diff)
 
     def separate_tags(self):
         settings = list()

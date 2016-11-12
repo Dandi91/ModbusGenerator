@@ -91,7 +91,8 @@ class PhoenixField:
         self.name = node.getAttribute('name')
         self.type = node.getAttribute('type')
         self.state.var.set(node.getAttribute('state'))
-        self.comment = node.firstChild.data
+        if node.firstChild is not None:
+            self.comment = node.firstChild.data
 
 
 # Класс, описывающий структуру PC-Worx. Содержит список полей PhoenixField и список экземпляров данной структуры
