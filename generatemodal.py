@@ -69,13 +69,13 @@ class Dialog(Toplevel):
 class GeneratorDialog(Dialog):
     def __init__(self, parent, project):
         self.project = project
-        self.gen_settings = project.generator_settings
-        self.save_settings = project.gen_settings.save_gen_settings.var
+        self.settings = project.settings
+        self.save_settings = project.settings.save_gen_settings.var
         self.variables = dict()
-        self.setting_list = list(self.gen_settings.labels.keys())
+        self.setting_list = list(self.settings.labels.keys())
         self.setting_list.sort()
         for setting in self.setting_list:
-            self.variables[setting] = getattr(self.gen_settings, setting).var
+            self.variables[setting] = getattr(self.settings, setting).var
         Dialog.__init__(self, parent, 'Настройки генератора')
 
     def body(self, master):
@@ -87,7 +87,7 @@ class GeneratorDialog(Dialog):
             return result
 
         for setting in self.setting_list:
-            create_cb(self.gen_settings.labels[setting], self.variables[setting])
+            create_cb(self.settings.labels[setting], self.variables[setting])
             current_row += 1
         create_cb('Больше не спрашивать при генерации', self.save_settings).grid(sticky=SW)
         master.rowconfigure(current_row, minsize='30px')

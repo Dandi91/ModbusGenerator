@@ -270,7 +270,7 @@ class Project:
         self.filename = None
         self.modified = False
         self.callback = callback
-        self.generator_settings = GeneratorSettings(self.changed)
+        self.settings = GeneratorSettings(self.changed)
         if filename is not None and filename != '':
             self.loaded_ok = self.load(filename)
             self.modified = not self.loaded_ok
@@ -311,7 +311,7 @@ class Project:
             new_field.deserialize(node)
             self.singles.append(new_field)
             node = node.nextSibling
-        self.generator_settings.deserialize(settings_node)
+        self.settings.deserialize(settings_node)
         self.filename = filename
         return True
 
@@ -330,7 +330,7 @@ class Project:
         for single in self.singles:
             node = single.serialize(doc)
             singles_node.appendChild(node)
-        root.appendChild(self.generator_settings.serialize(doc))
+        root.appendChild(self.settings.serialize(doc))
         f = open(filename, 'w', encoding='utf-8')
         f.write(doc.toprettyxml())
         f.close()

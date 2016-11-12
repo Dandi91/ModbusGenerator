@@ -346,7 +346,7 @@ class Skeleton:
 class Generator:
     def __init__(self, project):
         self.project = project
-        self.settings = project.generator_settings
+        self.settings = project.settings
         self.addr_spaces = list()
         self.skeletons = list()
 
@@ -398,8 +398,17 @@ class Generator:
             restore.extend(skeleton.restore)
             settings.extend(skeleton.settings)
             indication.extend(skeleton.indication)
-        restore.insert(0, 'if Restore then')
+        if self.settings.gen_cancel():
+            restore.insert(0, 'if Restore or {}[{}].X{} then'.format(self.settings.mb_arr_name(),
+                                                                     self.settings.gen_cancel_word(),
+                                                                     self.settings.gen_cancel_bit()))
+        else:
+            restore.insert(0, 'if Restore then')
         restore.append('end_if;')
+        if self.settings.gen_save():
+            settings.insert(0, 'if {}[{}].X{} then'.format(self.settings.mb_arr_name(), self.settings.gen_save_word(),
+                                                           self.settings.gen_save_bit()))
+            settings.append('end_if;')
         result = '(* --------- Восстановление настроек в Modbus после перезапуска ПЛК --------- *)\n'
         result += '\n'.join(restore) + '\n'
         result += '\n\n(* --------------------- Прием настроек в ПЛК из Modbus --------------------- *)\n'

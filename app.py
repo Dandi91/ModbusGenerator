@@ -199,19 +199,25 @@ class Application(Frame):
 
     # Генерировать код
     def generate(self, event=None):
+
+        def generate_impl():
+            gen = Generator(self.project)
+            gen.generate_all()
+            # Добавить вкладки с выводом
+            last_tab = len(self.notebook.tabs()) - 1
+            if self.notebook.tab(last_tab, option='text') == OutputFrame.tab_name:
+                self.notebook.forget(last_tab)
+            output = OutputFrame(self.notebook, gen)
+            self.notebook.add(output, text=output.tab_name, padding='4px')
+            self.notebook.select(len(self.notebook.tabs()) - 1)
+
         if self.project is not None:
-            if not self.project.save_gen_settings():
+            if not self.project.settings.save_gen_settings():
                 dlg = GeneratorDialog(self, self.project)
                 if dlg.result:
-                    gen = Generator(self.project)
-                    gen.generate_all()
-                    # Добавить вкладки с выводом
-                    last_tab = len(self.notebook.tabs()) - 1
-                    if self.notebook.tab(last_tab, option='text') == OutputFrame.tab_name:
-                        self.notebook.forget(last_tab)
-                    output = OutputFrame(self.notebook, gen)
-                    self.notebook.add(output, text=output.tab_name, padding='4px')
-                    self.notebook.select(len(self.notebook.tabs()) - 1)
+                    generate_impl()
+            else:
+                generate_impl()
 
     def paste(self, event):
         if self.project is not None:
