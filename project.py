@@ -194,7 +194,24 @@ class PhoenixStruct:
             field_node = field_node.nextSibling
 
 
-# Класс, описывающий проект. Содержит список структур PC-Worx
+class GeneratorSettings:
+    labels = {
+        'pcworx_modbus': 'Генерировать код для Modbus сервера в PCWorx',
+        'weintek_tags': 'Генерировать файл для импорта адресных меток в Weintek',
+        'weintek_events': 'Генерировать файл для импорта событий в Weintek',
+        'pcworx_structures': 'Генерировать код для импорта структур и переменных в PCWorx',
+        'webvisit': 'Генерировать файл для импорта в WebVisit'
+    }
+
+    def __init__(self):
+        self.pcworx_modbus = True
+        self.weintek_tags = True
+        self.weintek_events = True
+        self.pcworx_structures = True
+        self.webvisit = True
+
+
+# Класс, описывающий проект. Содержит список структур PC-Worx, а также настройки генератора
 class Project:
     def __init__(self, filename=None, callback=None):
         self.structs = list()
@@ -203,6 +220,8 @@ class Project:
         self.filename = None
         self.modified = False
         self.callback = callback
+        self.save_gen_settings = False
+        self.generator_settings = GeneratorSettings()
         if filename is not None and filename != '':
             self.loaded_ok = self.load(filename)
             self.modified = not self.loaded_ok
