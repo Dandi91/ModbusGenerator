@@ -31,6 +31,8 @@ class FieldVar:
             except:
                 self.var._root.after(100, lambda: self.var.set(self.old_value))
                 return
+            if res == self.old_value:
+                return
             self.old_value = res
         if self.callback is not None:
             self.callback()
