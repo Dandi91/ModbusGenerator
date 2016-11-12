@@ -56,4 +56,5 @@ class VerticalScrolledFrame(Frame):
         interior.bind('<Leave>', _unbound_to_mousewheel)
 
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            if interior.winfo_height() > canvas.winfo_height():
+                canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
