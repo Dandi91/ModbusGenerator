@@ -16,7 +16,7 @@ class SettingsFrame(Frame):
         self.frame.interior.columnconfigure(1, weight=1)
 
         self.project = project
-        self.settings = project.generator_settings
+        self.settings = project.settings
         self.tab_name = 'Настройки'
         self.interior = self.frame.interior
 

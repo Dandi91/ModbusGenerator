@@ -11,6 +11,7 @@ class FieldVar:
     def __init__(self, value, tk_var, callback=None):
         self.var = tk_var
         self.var.set(value)
+        self.old_value = value
         self.var.trace("w", self.__callback__)
         self.callback = callback
 
@@ -21,6 +22,16 @@ class FieldVar:
             return self.var.get()
 
     def __callback__(self, *args):
+        # Проверка на валидность ввода для числовых переменных
+        if isinstance(self.var, IntVar):
+            try:
+                res = self.var.get()
+                if res is None:
+                    raise Exception()
+            except:
+                self.var._root.after(100, lambda: self.var.set(self.old_value))
+                return
+            self.old_value = res
         if self.callback is not None:
             self.callback()
 
