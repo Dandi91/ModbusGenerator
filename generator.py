@@ -409,7 +409,7 @@ class Generator:
         result += '\n\n(* -------------------- Работа с показаниями и командами -------------------- *)\n'
         result += '\n'.join(indication) + '\n'
         in_code, out_code = self.generate_inout()
-        result = in_code + '\n\n' + result + '\n\n' + out_code
+        result = in_code + '\n\n' + result + '\n\n' + out_code + 'Restore := false;\n'
         return Skeleton.format_code(result)
 
     def get_hmi_tags(self):
