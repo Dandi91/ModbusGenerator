@@ -9,7 +9,7 @@ class Dialog(Toplevel):
         if title:
             self.title(title)
         self.parent = parent
-        self.result = None
+        self.result = False
         body = Frame(self)
         self.initial_focus = self.body(body)
         body.pack(padx=5, pady=5)
@@ -20,7 +20,7 @@ class Dialog(Toplevel):
         self.protocol("WM_DELETE_WINDOW", self.cancel)
         self.pack_slaves()
         left = parent.winfo_rootx() + (parent.winfo_width() - 412) / 2
-        top = parent.winfo_rooty() + (parent.winfo_height() - 220) / 2
+        top = parent.winfo_rooty() + (parent.winfo_height() - 250) / 2
         self.resizable(0, 0)
         self.geometry("+%d+%d" % (left, top))
         self.initial_focus.focus_set()
@@ -51,6 +51,7 @@ class Dialog(Toplevel):
         self.withdraw()
         self.update_idletasks()
         self.apply()
+        self.result = True
         self.cancel()
 
     def cancel(self, event=None):
@@ -69,12 +70,12 @@ class GeneratorDialog(Dialog):
     def __init__(self, parent, project):
         self.project = project
         self.gen_settings = project.generator_settings
-        self.save_settings = BooleanVar(project.save_gen_settings)
+        self.save_settings = project.save_gen_settings.var
         self.variables = dict()
         self.setting_list = list(self.gen_settings.labels.keys())
         self.setting_list.sort()
         for setting in self.setting_list:
-            self.variables[setting] = BooleanVar(parent, getattr(self.gen_settings, setting))
+            self.variables[setting] = getattr(self.gen_settings, setting).var
         Dialog.__init__(self, parent, 'Настройки генератора')
 
     def body(self, master):
@@ -91,8 +92,3 @@ class GeneratorDialog(Dialog):
         create_cb('Больше не спрашивать при генерации', self.save_settings).grid(sticky=SW)
         master.rowconfigure(current_row, minsize='30px')
         return None
-
-    def apply(self):
-        for setting in self.setting_list:
-            setattr(self.gen_settings, setting, self.variables[setting].get())
-        self.project.save_gen_settings = self.save_settings.get()
