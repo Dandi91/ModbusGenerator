@@ -4,7 +4,7 @@ from xlwt import *
 # Тип адреса, формат данных метки, формат данных события
 templates_hmi = {
     'bool':  ('4x_Bit', 'Undesignated', '16-bit Unsigned'),
-    'real':  ('4x', 'Undesignated', '16-bit Unsigned'),
+    'real':  ('4x', '32-bit FLOAT', '32-bit FLOAT'),
     'int':   ('4x', 'Undesignated', '16-bit Unsigned'),
     'dint':  ('4x', '32-bit SIGNED', '32-bit SIGNED'),
     'time':  ('4x', 'Undesignated', '16-bit Unsigned'),

@@ -8,7 +8,7 @@ from project import PhoenixStruct, FieldState
 # 4 - имя поля в структуре
 templates_to_mb = {
     'bool':  '{0}[{1}].X{2} := {3}{4};',
-    'real':  '{0}[{1}] := REAL_TO_WORD({3}{4} * 100.0);',
+    'real':  'RealToMB_1(rRealValue:={3}{4}); {0}[{1}] := RealToMB_1.LoWord;{5} {0}[{6}] := RealToMB_1.HiWord;',
     'int':   '{0}[{1}] := INT_TO_WORD({3}{4});',
     'dint':  'TempDword := DINT_TO_DWORD({3}{4}); {0}[{1}] := TempDword.W0;{5} {0}[{6}] := TempDword.W1;',
     'time':  '{0}[{1}] := DINT_TO_WORD(TIME_TO_DINT({3}{4}) / DINT#1000);',
@@ -17,7 +17,7 @@ templates_to_mb = {
 }
 templates_to_plc = {
     'bool':  '{3}{4} := {0}[{1}].X{2};',
-    'real':  '{3}{4} := WORD_TO_REAL({0}[{1}]) / 100.0;',
+    'real':  'TempWord := {0}[{1}];{5} MBToReal_1(HiWord:={0}[{6}],LoWord:=TempWord); {3}{4} := MBToReal_1.rRealValue;',
     'int':   '{3}{4} := WORD_TO_INT({0}[{1}]);',
     'dint':  'TempDword.W0 := {0}[{1}];{5} TempDword.W1 := {0}[{6}]; {3}{4} := DWORD_TO_DINT(TempDword);',
     'time':  '{3}{4} := DINT_TO_TIME(WORD_TO_DINT({0}[{1}]) * DINT#1000)',
@@ -38,7 +38,7 @@ cursor_advance = {
 # Приращение курсора при абсолютной адресации
 type_size = {
     'bool':  0,
-    'real':  1,
+    'real':  2,
     'int':   1,
     'dint':  2,
     'time':  1,
@@ -55,6 +55,7 @@ class LoopSkeleton:
         self.address_space = address_space
         self.tag_list = address_space.instances[0]
         self.num_instances = 0
+        self.has_reals = False
         self.restore = list()
         self.settings = list()
         self.indication = list()
@@ -125,6 +126,8 @@ class LoopSkeleton:
                 prev_address = tag.address
                 append_advance(addr_diff)
                 type_name = tag.field.type.lower()
+                if type_name == 'real':
+                    self.has_reals = True
                 if do_loop:
                     cursor = self.generator.settings.mb_cursor_name()
                     custom_advance = advance_by_one
@@ -272,12 +275,20 @@ class ModbusGenerator:
     def generate_vars(self):
         code_vars = 'i\tINT\tVAR\tСчетчик для циклов\n'
         code_vars += '{}\tINT\tVAR\tУказатель позиции регистра Modbus\n'.format(self.settings.mb_cursor_name())
+        code_vars += 'TempDword\tDWORD\tVAR\tВременный DWORD для записи в Modbus\n'
         types = ''
+        has_reals = False
         for skeleton in self.skeletons:
+            if skeleton.has_reals:
+                has_reals = True
             if len(skeleton.phoenix_vars) > 0:
                 code_vars += '\n'.join(skeleton.phoenix_vars) + '\n'
             if len(skeleton.phoenix_type_decls) > 0:
                 types += '\n'.join(skeleton.phoenix_type_decls) + '\n'
+        if has_reals:
+            code_vars += 'RealToMB_1\tRealToModbus\tVAR\tПреобразователь переменных с плавающей точкой в слова\n'
+            code_vars += 'MBToReal_1\tModbusToReal\tVAR\tПреобразователь слов в числа с плавающей точкой\n'
+            code_vars += 'TempWord\tWORD\tVAR\tВременный WORD для блока MBToReal\n'
         types = 'TYPE\n' + types + 'END_TYPE\n'
         code_vars = code_vars.strip()
         return code_vars, types
