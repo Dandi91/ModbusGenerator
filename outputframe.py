@@ -1,9 +1,9 @@
 from tkinter import *
 
 
-# Вкладка для вывода кода PCWorx
-class OutputFrame(Frame):
-    tab_name = 'Импорт в PCWorx'
+# Вкладка для вывода кода Modbus в PCWorx
+class MBOutputFrame(Frame):
+    tab_name = 'Modbus в PCWorx'
 
     def __init__(self, master=None, generator=None):
         Frame.__init__(self, master)
@@ -11,11 +11,11 @@ class OutputFrame(Frame):
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
         if generator is not None:
-            code = self.create_text_pane('Код для Modbus сервера', generator.get_mb_code())
+            mb_code, local_vars, type_decls = generator.gen_pcworx_mb()
+            code = self.create_text_pane('Код для Modbus сервера', mb_code)
             code.grid(column=0, row=0, sticky=(N, S, W, E))
             code.config(height='200px')
-            local_vars, type_decls = generator.generate_locals()
-            variables = self.create_text_pane('Переменные', local_vars.strip())
+            variables = self.create_text_pane('Переменные', local_vars)
             variables.grid(column=0, row=1, sticky=(N, S, W, E))
             variables.grid_propagate(False)
             variables.config(height='100px')

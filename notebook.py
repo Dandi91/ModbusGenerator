@@ -45,6 +45,14 @@ class AppNotebook(Notebook):
             if selected is not None and len(self.tabs()) > selected:
                 self.select(selected)
 
+    # Возвращает индекс вкладки по тексту ярлычка
+    def index_by_text(self, tab_text):
+        for i in range(0, len(self.tabs()) - 1):
+            if self.tab(i, option='text') == tab_text:
+                return i
+        return -1
+
+    # Возвращает значения для левой и правой границы ярлычка вкладки в пикселях
     def get_tab_position(self, index):
         left = 0
         right = 0

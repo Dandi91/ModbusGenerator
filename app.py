@@ -67,7 +67,7 @@ class Application(Frame):
         self.proj_menu = Menu(main_menu, tearoff=0)
         self.proj_menu.add_command(label='Генерировать', command=self.generate, accelerator='Ctrl+G')
         self.bind_all('<Control-g>', self.generate)
-        self.proj_menu.add_command(label='Настройки генерации...', command=self.generation_settings)
+        self.proj_menu.add_command(label='Настройки генератора...', command=self.generation_settings)
         main_menu.add_cascade(label='Проект', menu=self.proj_menu)
 
         self.struct_menu = Menu(main_menu, tearoff=0)
@@ -201,14 +201,28 @@ class Application(Frame):
 
         def generate_impl():
             gen = Generator(self.project)
-            gen.generate_all()
-            # Добавить вкладки с выводом
-            last_tab = len(self.notebook.tabs()) - 1
-            if self.notebook.tab(last_tab, option='text') == OutputFrame.tab_name:
-                self.notebook.forget(last_tab)
-            output = OutputFrame(self.notebook, gen)
-            self.notebook.add(output, text=output.tab_name, padding='4px')
-            self.notebook.select(len(self.notebook.tabs()) - 1)
+            gen.generate_address_space()
+            if self.project.settings.pcworx_modbus():
+                # Добавить вкладку с выводом
+                tab = self.notebook.index_by_text(MBOutputFrame.tab_name)
+                if tab > -1:
+                    self.notebook.forget(tab)
+                output = MBOutputFrame(self.notebook, gen)
+                self.notebook.add(output, text=output.tab_name, padding='4px')
+                self.notebook.select(len(self.notebook.tabs()) - 1)
+            if self.project.settings.pcworx_structures():
+                pass
+                # Добавить вкладку с выводом
+                # tab = self.notebook.index_by_text(MBOutputFrame.tab_name)
+                # if tab > -1:
+                #     self.notebook.forget(tab)
+                # output = MBOutputFrame(self.notebook, gen)
+                # self.notebook.add(output, text=output.tab_name, padding='4px')
+                # self.notebook.select(len(self.notebook.tabs()) - 1)
+            if self.project.settings.weintek():
+                gen.gen_weintek()
+            if self.project.settings.webvisit():
+                gen.gen_webvisit()
 
         if self.project is not None:
             if not self.project.settings.save_gen_settings():
