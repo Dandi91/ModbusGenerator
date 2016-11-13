@@ -26,7 +26,7 @@ class HMIGenerator:
             f.write(self.generate_hmi_tag(tag))
         f.close()
         # Пишем события
-        events = filter(lambda t: t.field.event(), tags)
+        events = list(filter(lambda t: t.field.event(), tags))
         self.write_events(events)
 
     # Склейка всех тэгов в один большой список
@@ -67,9 +67,9 @@ class HMIGenerator:
         wb = Workbook(encoding='utf-8')
         ws = wb.add_sheet('Event')
         # Записываем заголовок
-        for i, text in zip(range(0, len(header) - 1), header):
+        for i, text in zip(range(len(header)), header):
             ws.write(0, i, text)
         # Записываем события
-        for i, event in zip(range(0, len(event_list) - 1), event_list):
+        for i, event in zip(range(len(event_list)), event_list):
             pass
         wb.save(self.settings.weintek_event_file())

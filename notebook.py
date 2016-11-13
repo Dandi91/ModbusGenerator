@@ -47,7 +47,7 @@ class AppNotebook(Notebook):
 
     # Возвращает индекс вкладки по тексту ярлычка
     def index_by_text(self, tab_text):
-        for i in range(0, len(self.tabs()) - 1):
+        for i in range(len(self.tabs())):
             if self.tab(i, option='text') == tab_text:
                 return i
         return -1
@@ -57,7 +57,7 @@ class AppNotebook(Notebook):
         left = 0
         right = 0
         found = False
-        for x in range(0, self.winfo_width()):
+        for x in range(self.winfo_width() + 10):
             current_index = -1
             try:
                 current_index = self.index('@{},{}'.format(x, 8))

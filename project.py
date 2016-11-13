@@ -73,10 +73,11 @@ class PhoenixField:
         else:
             self.state(state)
         # Пытаемся определить событие это или нет по имени поля
-        for event in event_types:
-            if name.lower().startswith(event.prefix().lower()):
-                self.event(True)
-                break
+        if event_types is not None:
+            for event in event_types:
+                if name.lower().startswith(event.prefix().lower()):
+                    self.event(True)
+                    break
 
     def __eq__(self, other):
         if isinstance(other, str):
@@ -117,7 +118,7 @@ class PhoenixField:
         self.name = node.getAttribute('name')
         self.type = node.getAttribute('type')
         self.state(node.getAttribute('state'))
-        self.event(bool(node.getAttribute('event')))
+        self.event(node.getAttribute('event'))
         if node.firstChild is not None:
             self.comment = node.firstChild.data
 
@@ -247,7 +248,7 @@ class EventType:
         if node.tagName != 'event_type':
             return
         self.color(node.getAttribute('color'))
-        self.use(bool(node.getAttribute('use')))
+        self.use(node.getAttribute('use'))
         if node.hasChildNodes():
             self.prefix(node.firstChild.data)
 
@@ -354,10 +355,14 @@ class Project:
         root.normalize()
 
         def load_list(root_tag_name, elem_type, list_to_append):
-            list_root = root.getElementsByTagName(root_tag_name)[0]
+            node_list = root.getElementsByTagName(root_tag_name)
+            if len(node_list) > 0:
+                list_root = node_list[0]
+            else:
+                return
             elem_node = list_root.firstChild
             while elem_node is not None:
-                list_element = elem_type.__init__(callback=self.changed)
+                list_element = elem_type(callback=self.changed)
                 list_element.deserialize(elem_node)
                 list_to_append.append(list_element)
                 elem_node = elem_node.nextSibling

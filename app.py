@@ -202,11 +202,12 @@ class Application(Frame):
         def generate_impl():
             gen = Generator(self.project)
             gen.generate_address_space()
+            tab = self.notebook.index_by_text(MBOutputFrame.tab_name)
+            while tab > -1:
+                self.notebook.forget(tab)
+                tab = self.notebook.index_by_text(MBOutputFrame.tab_name)
             if self.project.settings.pcworx_modbus():
                 # Добавить вкладку с выводом
-                tab = self.notebook.index_by_text(MBOutputFrame.tab_name)
-                if tab > -1:
-                    self.notebook.forget(tab)
                 output = MBOutputFrame(self.notebook, gen)
                 self.notebook.add(output, text=output.tab_name, padding='4px')
                 self.notebook.select(len(self.notebook.tabs()) - 1)
