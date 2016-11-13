@@ -22,7 +22,7 @@ def quit_callback(event=None):
 # Главный класс приложения - реализует окно верхнего уровня
 # с меню и компонентом для закладок
 class Application(Frame):
-    title = 'Генератор модбаса v0.2'
+    title = 'Генератор модбаса v0.5'
 
     # Конструктор класса
     def __init__(self, master=None):
