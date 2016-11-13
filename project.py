@@ -75,9 +75,10 @@ class PhoenixField:
         # Пытаемся определить событие это или нет по имени поля
         if event_types is not None:
             for event in event_types:
-                if name.lower().startswith(event.prefix().lower()):
-                    self.event(True)
-                    break
+                if event.use():
+                    if name.lower().startswith(event.prefix().lower()):
+                        self.event(True)
+                        break
 
     def __eq__(self, other):
         if isinstance(other, str):
@@ -224,10 +225,10 @@ class PhoenixStruct:
 
 # Класс - тип событий с определенным префиксом и цветом
 class EventType:
-    def __init__(self, prefix='', color='0:0:0', callback=None):
+    def __init__(self, prefix='', color='#000', callback=None):
         self.prefix = FieldVar(prefix, StringVar(), self.changed)
         self.color = FieldVar(color, StringVar(), self.changed)
-        self.use = FieldVar(False, BooleanVar(), self.changed)
+        self.use = FieldVar(True, BooleanVar(), self.changed)
         self.callback = callback
 
     def changed(self):
@@ -240,7 +241,7 @@ class EventType:
         event_node.setAttribute('color', self.color())
         event_node.setAttribute('use', str(self.use()))
         text_node = document.createTextNode(self.prefix())
-        event_node.appendCild(text_node)
+        event_node.appendChild(text_node)
         return event_node
 
     # Метод де-сериализации (загрузки) типа собития из XML
@@ -328,9 +329,9 @@ class Project:
             self.loaded_ok = self.load(filename)
             self.modified = not self.loaded_ok
         else:
-            self.event_types = [EventType('ALR', '249:58:43'),
-                                EventType('WRN', '189:167:13'),
-                                EventType('INF', '0:147:0')]
+            self.event_types = [EventType('ALR', '#f93a2b', self.changed),
+                                EventType('WRN', '#bda70d', self.changed),
+                                EventType('INF', '#009300', self.changed)]
         self.notify()
 
     def changed(self):
@@ -340,6 +341,17 @@ class Project:
     def notify(self):
         if self.callback is not None:
             self.callback()
+
+    # Метод распознавания событий
+    def detect_events(self):
+        fields = list(self.singles)
+        for struct in self.structs:
+            fields.extend(struct.fields)
+        for field in fields:
+            name = field.name.lower()
+            for event_type in self.event_types:
+                if name.startswith(event_type.prefix().lower()):
+                    field.event(True)
 
     # Метод загрузки проекта из файла
     def load(self, filename):

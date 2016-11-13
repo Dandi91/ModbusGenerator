@@ -65,6 +65,7 @@ class Application(Frame):
         main_menu.add_cascade(label='Файл', menu=self.file_menu)
 
         self.proj_menu = Menu(main_menu, tearoff=0)
+        self.proj_menu.add_command(label='Распознать события', command=self.detect_events)
         self.proj_menu.add_command(label='Генерировать', command=self.generate, accelerator='Ctrl+G')
         self.bind_all('<Control-g>', self.generate)
         self.proj_menu.add_command(label='Настройки генератора...', command=self.generation_settings)
@@ -115,6 +116,7 @@ class Application(Frame):
             self.file_menu.entryconfigure(3, state=DISABLED)
             self.proj_menu.entryconfigure(0, state=DISABLED)
             self.proj_menu.entryconfigure(1, state=DISABLED)
+            self.proj_menu.entryconfigure(2, state=DISABLED)
             self.struct_menu.entryconfigure(0, state=DISABLED)
             self.struct_menu.entryconfigure(1, state=DISABLED)
             self.struct_menu.entryconfigure(2, state=DISABLED)
@@ -123,6 +125,7 @@ class Application(Frame):
             self.file_menu.entryconfigure(3, state=NORMAL)
             self.proj_menu.entryconfigure(0, state=NORMAL)
             self.proj_menu.entryconfigure(1, state=NORMAL)
+            self.proj_menu.entryconfigure(2, state=NORMAL)
             self.struct_menu.entryconfigure(0, state=NORMAL)
             if self.notebook is not None:
                 if self.notebook.can_edit_tab:
@@ -240,6 +243,10 @@ class Application(Frame):
 
     def generation_settings(self, event=None):
         GeneratorDialog(self, self.project, False)
+
+    def detect_events(self, event=None):
+        if self.project is not None:
+            self.project.detect_events()
 
 
 # Инициализация библиотеки Tkinter
