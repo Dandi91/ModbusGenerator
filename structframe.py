@@ -30,9 +30,12 @@ class TableRow(Frame):
         self.create_lb(2, field.comment, 24, W)
 
         # Создаем выпадающий список с вариантами статуса
-        cb = Combobox(self, textvariable=field.state.var, values=states, width=25)
-        cb.state(['readonly'])
-        cb.grid(column=4, row=0, sticky=(W, E))
+        cbb = Combobox(self, textvariable=field.state.var, values=states, width=25)
+        cbb.state(['readonly'])
+        cbb.grid(column=3, row=0, sticky=(W, E))
+
+        # Создаем чекбокс для отметки события
+        self.create_cb(field.event.var, 4)
 
     # Функция-хелпер для создания надписей в колонке col с текстом text,
     # шириной width символов, и центровкой anchor
@@ -156,7 +159,8 @@ class TableFrame(Frame):
         header_lb(0, 'Название', 32)
         header_lb(1, 'Тип', 23)
         header_lb(2, 'Комментарий')
-        header_lb(4, 'Назначение', 28)
+        header_lb(3, 'Назначение', 18)
+        header_lb(4, 'Событие', 9)
 
     # Метод добавления строки для поля field структуры
     def append_row(self, field):
