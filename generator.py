@@ -1,5 +1,6 @@
 from modbusgenerator import ModbusGenerator, type_size
 from hmigenerator import HMIGenerator
+from webvisitgenerator import WebVisitGenerator
 from project import PhoenixStruct, FieldState
 
 
@@ -39,6 +40,25 @@ class AddressTag:
         self.instance = instance
         self.field = field
         self.size = type_size[field.type.lower()]
+
+    def get_name(self):
+        if self.instance != '':
+            name = self.instance + '.' + self.field.name
+        else:
+            name = self.field.name
+        return name
+
+    def get_description(self):
+        device_prefixes = ('SENS_', 'VLV_', 'PMP_', 'REG_')
+        device_name = self.instance
+        for prefix in device_prefixes:
+            if device_name.startswith(prefix):
+                device_name = device_name.replace(prefix, '')
+                break
+        comment = self.field.comment
+        if comment.count('{}') < 1:
+            comment = '{} - ' + comment
+        return comment.format(device_name)
 
 
 # Адресное пространство - коллекция адресных меток, принадлежащих к одному типу структур
@@ -116,4 +136,5 @@ class Generator:
         gen.generate()
 
     def gen_webvisit(self):
-        pass
+        gen = WebVisitGenerator(self)
+        gen.generate()

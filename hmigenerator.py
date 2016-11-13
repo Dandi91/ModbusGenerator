@@ -25,7 +25,7 @@ class HMIGenerator:
         # Пишем метки
         f = open(self.settings.weintek_tag_file(), 'w')
         for tag in tags:
-            f.write(self.generate_hmi_tag(tag))
+            f.write(self.generate_hmi_tag(tag) + '\n')
         f.close()
         # Пишем события
         events = list(filter(lambda t: t.field.event(), tags))
@@ -47,15 +47,12 @@ class HMIGenerator:
             hmi_address = address_tag.address * 100 + address_tag.bit
         else:
             hmi_address = address_tag.address
-        instance_name = address_tag.instance
-        if address_tag.instance != '':
-            instance_name += '.'
-        return '{}{},{},{},{},,{}'.format(instance_name, address_tag.field.name, self.settings.plc_name(),
-                                          hmi_params[0], hmi_address, hmi_params[1])
+        return '{},{},{},{},,{}'.format(address_tag.get_name(), self.settings.plc_name(),
+                                        hmi_params[0], hmi_address, hmi_params[1])
 
     # Генерация Excel-файла с событиями для HMI
     def write_events(self, event_list):
-        header = ['Категория', 'Приоритет', 'Тип адреса', 'Имя ПЛК (Чтение)', 'Тип устройства (Чтение)'
+        header = ['Категория', 'Приоритет', 'Тип адреса', 'Имя ПЛК (Чтение)', 'Тип устройства (Чтение)',
                   'Системный тэг (Чтение)', 'Пользовательский тэг (Чтение)', 'Адрес (Чтение)', 'Индекс (Чтение)',
                   'Формат данных (Чтение)', 'Уведомление доступно', 'ON (Уведомление)', 'Имя ПЛК (Уведомление)',
                   'Тип устройства (Уведомление)', 'Системный тэг (Уведомление)', 'Пользовательский тэг (Уведомление)',
@@ -73,12 +70,12 @@ class HMIGenerator:
             ws.write(0, i, text)
         # Записываем события
         for i, event in zip(range(1, len(event_list) + 1), event_list):
-            name, address, data_format = self.get_event_info(event)
+            address, data_format = self.get_event_info(event)
             ws.write(i, 0, '0')                             # Категория
             ws.write(i, 1, 'Middle')                        # Приоритет
             ws.write(i, 2, 'Bit')                           # Тип адреса
             ws.write(i, 3, self.settings.plc_name())        # Имя ПЛК (Чтение)
-            ws.write(i, 4, name)                            # Тип устройства (Чтение)
+            ws.write(i, 4, event.get_name())                # Тип устройства (Чтение)
             ws.write(i, 5, 'False')                         # Системный тэг (Чтение)
             ws.write(i, 6, 'True')                          # Пользовательский тэг (Чтение)
             ws.write(i, 7, address)                         # Адрес (Чтение)
@@ -94,8 +91,7 @@ class HMIGenerator:
             ws.write(i, 17, 'null')                         # Индекс (Уведомление)
             ws.write(i, 18, 'bt: 1')                        # Условие
             ws.write(i, 19, '0')                            # Значение триггера
-            description = self.get_event_description(event)
-            ws.write(i, 20, description)                    # Содержание
+            ws.write(i, 20, event.get_description())        # Содержание
             ws.write(i, 21, 'False')                        # Библиотека меток пользователя
             ws.write(i, 22, '')                             # Имя метки
             ws.write(i, 23, 'Arial')                        # Шрифт
@@ -113,7 +109,7 @@ class HMIGenerator:
             ws.write(i, 34, '0')                            # Время задержки
             ws.write(i, 35, '0')                            # Динамическое условие
             ws.write(i, 36, self.settings.plc_name())       # Имя ПЛК (Условие)
-            ws.write(i, 37, name)                           # Тип устройства (Условие)
+            ws.write(i, 37, event.get_name())               # Тип устройства (Условие)
             ws.write(i, 38, 'False')                        # Системный тэг (Условие)
             ws.write(i, 39, 'True')                         # Тэг определяемый пользователем (Условие)
             ws.write(i, 40, address)                        # Адрес (Условие)
@@ -123,10 +119,6 @@ class HMIGenerator:
 
     @staticmethod
     def get_event_info(event_tag):
-        if event_tag.instance != '':
-            name = event_tag.instance + '.' + event_tag.field.name
-        else:
-            name = event_tag.field.name
         type_name = event_tag.field.type.lower()
         hmi_type_params = templates_hmi[type_name]
         hmi_address_type = hmi_type_params[0]
@@ -136,20 +128,7 @@ class HMIGenerator:
         else:
             address = event_tag.address
         hmi_address = '{}-{}'.format(hmi_address_type, address)
-        return name, hmi_address, data_format
-
-    @staticmethod
-    def get_event_description(event_tag):
-        device_prefixes = ('SENS_', 'VLV_', 'PMP_', 'REG_')
-        device_name = event_tag.instance
-        for prefix in device_prefixes:
-            if device_name.startswith(prefix):
-                device_name = device_name.replace(prefix, '')
-                break
-        comment = event_tag.field.comment
-        if comment.count('{}') < 1:
-            comment = '{} - ' + comment
-        return comment.format(device_name)
+        return hmi_address, data_format
 
     def get_event_color(self, event_tag):
         tk_color = '#000'
