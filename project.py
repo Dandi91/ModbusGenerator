@@ -1,4 +1,4 @@
-import re
+from re import search, findall, MULTILINE, DOTALL
 from xml.dom.minidom import getDOMImplementation, parse, Node
 from xml.parsers.expat import ExpatError
 from tkinter import messagebox, StringVar, BooleanVar, IntVar
@@ -54,11 +54,12 @@ class FieldState(Enum):
 
 # Класс, описывающий одно поле структуры PC-Worx
 class PhoenixField:
-    def __init__(self, name='', field_type='', comment='', state=None, callback=None):
+    def __init__(self, name='', field_type='', comment='', state=None, callback=None, event_types=None):
         self.name = name                                                    # Иия поля
         self.type = field_type                                              # Тип данных
         self.comment = comment                                              # Комментарий (описание события HMI)
         self.state = FieldVar(state, StringVar(), self.changed)             # Статус переменной
+        self.event = FieldVar(False, BooleanVar(), self.changed)            # Событие
         self.callback = callback
         # При создании поля, если не указано явного статуса, то смотрим на префикс имени
         if state is None:
@@ -71,6 +72,11 @@ class PhoenixField:
                 self.state(FieldState.indication.str())
         else:
             self.state(state)
+        # Пытаемся определить событие это или нет по имени поля
+        for event in event_types:
+            if name.lower().startswith(event.prefix().lower()):
+                self.event(True)
+                break
 
     def __eq__(self, other):
         if isinstance(other, str):
@@ -101,6 +107,7 @@ class PhoenixField:
         field_node.setAttribute('name', self.name)
         field_node.setAttribute('type', self.type)
         field_node.setAttribute('state', self.state())
+        field_node.setAttribute('event', str(self.event()))
         return field_node
 
     # Метод де-сериализации (загрузки) поля из XML
@@ -110,6 +117,7 @@ class PhoenixField:
         self.name = node.getAttribute('name')
         self.type = node.getAttribute('type')
         self.state(node.getAttribute('state'))
+        self.event(bool(node.getAttribute('event')))
         if node.firstChild is not None:
             self.comment = node.firstChild.data
 
@@ -213,21 +221,50 @@ class PhoenixStruct:
             field_node = field_node.nextSibling
 
 
+# Класс - тип событий с определенным префиксом и цветом
+class EventType:
+    def __init__(self, prefix='', color='0:0:0', callback=None):
+        self.prefix = FieldVar(prefix, StringVar(), self.changed)
+        self.color = FieldVar(color, StringVar(), self.changed)
+        self.use = FieldVar(False, BooleanVar(), self.changed)
+        self.callback = callback
+
+    def changed(self):
+        if self.callback is not None:
+            self.callback()
+
+    # Метод сериализации типа события в XML
+    def serialize(self, document):
+        event_node = document.createElement('event_type')
+        event_node.setAttribute('color', self.color())
+        event_node.setAttribute('use', str(self.use()))
+        text_node = document.createTextNode(self.prefix())
+        event_node.appendCild(text_node)
+        return event_node
+
+    # Метод де-сериализации (загрузки) типа собития из XML
+    def deserialize(self, node):
+        if node.tagName != 'event_type':
+            return
+        self.color(node.getAttribute('color'))
+        self.use(bool(node.getAttribute('use')))
+        if node.hasChildNodes():
+            self.prefix(node.firstChild.data)
+
+
 class GeneratorSettings:
     labels = {
         'pcworx_modbus': 'Генерировать код для Modbus сервера в PCWorx',
-        'weintek_tags': 'Генерировать файл для импорта адресных меток в Weintek',
-        'weintek_events': 'Генерировать файл для импорта событий в Weintek',
+        'weintek': 'Генерировать файлы для импорта в Weintek',
         'pcworx_structures': 'Генерировать код для импорта структур и переменных в PCWorx',
-        'webvisit': 'Генерировать файл для импорта в WebVisit'
+        'webvisit': 'Генерировать файлы для импорта в WebVisit'
     }
 
     def __init__(self, callback):
         # Настройки вывода
         self.save_gen_settings = FieldVar(False, BooleanVar(), callback)
         self.pcworx_modbus = FieldVar(True, BooleanVar(), callback)
-        self.weintek_tags = FieldVar(True, BooleanVar(), callback)
-        self.weintek_events = FieldVar(True, BooleanVar(), callback)
+        self.weintek = FieldVar(True, BooleanVar(), callback)
         self.pcworx_structures = FieldVar(True, BooleanVar(), callback)
         self.webvisit = FieldVar(True, BooleanVar(), callback)
         # Общие настройки
@@ -245,6 +282,7 @@ class GeneratorSettings:
         self.weintek_tag_file = FieldVar('', StringVar(), callback)
         self.weintek_event_file = FieldVar('', StringVar(), callback)
         self.webvisit_file = FieldVar('', StringVar(), callback)
+        self.webvisit_text_file = FieldVar('', StringVar(), callback)
 
     # Метод сериализации настроек в XML
     def serialize(self, document):
@@ -284,9 +322,14 @@ class Project:
         self.modified = False
         self.callback = callback
         self.settings = GeneratorSettings(self.changed)
+        self.event_types = list()
         if filename is not None and filename != '':
             self.loaded_ok = self.load(filename)
             self.modified = not self.loaded_ok
+        else:
+            self.event_types = [EventType('ALR', '249:58:43'),
+                                EventType('WRN', '189:167:13'),
+                                EventType('INF', '0:147:0')]
         self.notify()
 
     def changed(self):
@@ -309,22 +352,20 @@ class Project:
             return False
         self.remove_blanks(root)
         root.normalize()
-        struct_node = root.getElementsByTagName('structs')[0]
-        singles_node = root.getElementsByTagName('singles')[0]
-        settings_node = root.getElementsByTagName('settings')[0]
-        node = struct_node.firstChild
-        while node is not None:
-            new_struct = PhoenixStruct(callback=self.changed)
-            new_struct.deserialize(node)
-            self.structs.append(new_struct)
-            node = node.nextSibling
-        node = singles_node.firstChild
-        while node is not None:
-            new_field = PhoenixField(callback=self.changed)
-            new_field.deserialize(node)
-            self.singles.append(new_field)
-            node = node.nextSibling
-        self.settings.deserialize(settings_node)
+
+        def load_list(root_tag_name, elem_type, list_to_append):
+            list_root = root.getElementsByTagName(root_tag_name)[0]
+            elem_node = list_root.firstChild
+            while elem_node is not None:
+                list_element = elem_type.__init__(callback=self.changed)
+                list_element.deserialize(elem_node)
+                list_to_append.append(list_element)
+                elem_node = elem_node.nextSibling
+
+        load_list('event_types', EventType, self.event_types)
+        load_list('structs', PhoenixStruct, self.structs)
+        load_list('singles', PhoenixField, self.singles)
+        self.settings.deserialize(root.getElementsByTagName('settings')[0])
         self.filename = filename
         return True
 
@@ -333,16 +374,17 @@ class Project:
         impl = getDOMImplementation()
         doc = impl.createDocument(None, 'mbgen_doc', None)
         root = doc.documentElement
-        struct_node = doc.createElement('structs')
-        root.appendChild(struct_node)
-        for struct in self.structs:
-            node = struct.serialize(doc)
-            struct_node.appendChild(node)
-        singles_node = doc.createElement('singles')
-        root.appendChild(singles_node)
-        for single in self.singles:
-            node = single.serialize(doc)
-            singles_node.appendChild(node)
+
+        def save_list(list_to_save, tag_name):
+            list_root = doc.createElement(tag_name)
+            root.appendChild(list_root)
+            for element in list_to_save:
+                node = element.serialize(doc)
+                list_root.appendChild(node)
+
+        save_list(self.structs, 'structs')
+        save_list(self.singles, 'singles')
+        save_list(self.event_types, 'event_types')
         root.appendChild(self.settings.serialize(doc))
         f = open(filename, 'w', encoding='utf-8')
         f.write(doc.toprettyxml())
@@ -355,7 +397,7 @@ class Project:
     def analyze_input(self, text):
         text = self.fix_encoding(text)
         text = self.analyze_singles(text)
-        raw_structs = re.findall('\s(\S+?)\s*:\s*STRUCT(.+?)END_STRUCT;.*?', text, re.MULTILINE and re.DOTALL)
+        raw_structs = findall('\s(\S+?)\s*:\s*STRUCT(.+?)END_STRUCT;.*?', text, MULTILINE and DOTALL)
         for struct in raw_structs:
             # Для каждой найденной структуры вызывается отдельный метод
             # для разбиения данной структуры на поля и распознание атрибутов
@@ -381,7 +423,7 @@ class Project:
         for line in lines:
             line = line.strip()
             if line.find('VAR_GLOBAL') > -1:
-                fields = re.search('^(\S+)\s+(\S+)\s+VAR_GLOBAL\s+(.*)$', line)
+                fields = search('^(\S+)\s+(\S+)\s+VAR_GLOBAL\s+(.*)$', line)
                 var_name = fields.group(1)
                 if var_name in self.singles:
                     if messagebox.askyesno('Внимание',
@@ -389,16 +431,16 @@ class Project:
                         self.singles.remove(var_name)
                     else:
                         continue
-                self.singles.append(PhoenixField(fields.group(1), fields.group(2), fields.group(3)))
+                self.singles.append(PhoenixField(fields.group(1), fields.group(2), fields.group(3),
+                                                 callback=self.changed, event_types=self.event_types))
                 self.modified = True
             else:
                 result.append(line)
         self.singles.sort(key=lambda f: f.name)
         return '\n'.join(result)
 
-    @staticmethod
     # Метод, анализирующий отдельную структуру из пары pair
-    def analyze_struct(pair):
+    def analyze_struct(self, pair):
         # Первый параметр пары - имя структуры
         struct_name = pair[0].strip()
         field_array = list()
@@ -408,14 +450,14 @@ class Project:
         for field in raw_fields:
             field = field.strip()
             # Выделение имени поля, его типа, и комментария
-            res = re.search('(\S+?)\s*:\s*(\S+?)\s*;\s*(.*)$', field)
+            res = search('(\S+?)\s*:\s*(\S+?)\s*;\s*(.*)$', field)
             if res is not None:
                 comment = res.group(3).strip()
                 if comment != '':
                     # Удаление (* *) из текста комментария
-                    comment = re.search('^\(\*\s*(.*?)\s*\*\)$', comment).group(1)
+                    comment = search('^\(\*\s*(.*?)\s*\*\)$', comment).group(1)
                 # Добавление нового поля в список полей
-                field_array.append(PhoenixField(res.group(1), res.group(2), comment))
+                field_array.append(PhoenixField(res.group(1), res.group(2), comment, event_types=self.event_types))
         # Создаем и возвращаем новую структуру
         return PhoenixStruct(struct_name, field_array)
 
