@@ -47,9 +47,6 @@ class Application(Frame):
         self.create_menus()
         self.update_wnd_state()
 
-    def log(self, event):
-        print(event.keycode, event.keysym)
-
     # Метод создания пунктов меню
     def create_menus(self):
         main_menu = Menu(self.master)
