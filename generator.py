@@ -51,11 +51,13 @@ class AddressTag:
     def get_description(self):
         device_prefixes = ('SENS_', 'VLV_', 'PMP_', 'REG_')
         device_name = self.instance
+        comment = self.field.comment
+        if device_name == '':
+            return comment
         for prefix in device_prefixes:
             if device_name.startswith(prefix):
                 device_name = device_name.replace(prefix, '')
                 break
-        comment = self.field.comment
         if comment.count('{}') < 1:
             comment = '{} - ' + comment
         return comment.format(device_name)

@@ -120,7 +120,7 @@ class AppNotebook(Notebook):
             old_text = self.tab('current', option='text')
             new_text = self.editor_var.get()
             if new_text != old_text:
-                self.project.structs[self.index('current') - 1].name = new_text
+                self.project.structs[self.index('current') - 2].name = new_text
                 self.project.modified = True
                 self.master.update_title()
                 self.tab('current', text=new_text)

@@ -10,7 +10,9 @@ templates_to_mb = {
     'bool':  '{0}[{1}].X{2} := {3}{4};',
     'real':  'RealToMB_1(rRealValue:={3}{4}); {0}[{1}] := RealToMB_1.LoWord;{5} {0}[{6}] := RealToMB_1.HiWord;',
     'int':   '{0}[{1}] := INT_TO_WORD({3}{4});',
+    'uint':  '{0}[{1}] := UINT_TO_WORD({3}{4});',
     'dint':  'TempDword := DINT_TO_DWORD({3}{4}); {0}[{1}] := TempDword.W0;{5} {0}[{6}] := TempDword.W1;',
+    'udint': 'TempDword := UDINT_TO_DWORD({3}{4}); {0}[{1}] := TempDword.W0;{5} {0}[{6}] := TempDword.W1;',
     'time':  '{0}[{1}] := DINT_TO_WORD(TIME_TO_DINT({3}{4}) / DINT#1000);',
     'word':  '{0}[{1}] := {3}{4};',
     'dword': '{0}[{1}] := {3}{4}.W0;{5} {0}[{6}] := {3}{4}.W1;'
@@ -19,7 +21,9 @@ templates_to_plc = {
     'bool':  '{3}{4} := {0}[{1}].X{2};',
     'real':  'TempWord := {0}[{1}];{5} MBToReal_1(HiWord:={0}[{6}],LoWord:=TempWord); {3}{4} := MBToReal_1.rRealValue;',
     'int':   '{3}{4} := WORD_TO_INT({0}[{1}]);',
+    'uint':  '{3}{4} := WORD_TO_UINT({0}[{1}]);',
     'dint':  'TempDword.W0 := {0}[{1}];{5} TempDword.W1 := {0}[{6}]; {3}{4} := DWORD_TO_DINT(TempDword);',
+    'udint': 'TempDword.W0 := {0}[{1}];{5} TempDword.W1 := {0}[{6}]; {3}{4} := DWORD_TO_UDINT(TempDword);',
     'time':  '{3}{4} := DINT_TO_TIME(WORD_TO_DINT({0}[{1}]) * DINT#1000)',
     'word':  '{3}{4} := {0}[{1}];',
     'dword': '{3}{4}.W0 := {0}[{1}];{5} {3}{4}.W1 := {0}[{6}];'
@@ -30,7 +34,9 @@ cursor_advance = {
     'bool':  0,
     'real':  1,
     'int':   1,
+    'uint':  1,
     'dint':  1,
+    'udint': 1,
     'time':  1,
     'word':  1,
     'dword': 1
@@ -40,7 +46,9 @@ type_size = {
     'bool':  0,
     'real':  2,
     'int':   1,
+    'uint':  1,
     'dint':  2,
+    'udint': 2,
     'time':  1,
     'word':  1,
     'dword': 2

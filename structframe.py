@@ -8,6 +8,8 @@ from generator import type_size
 
 # Строка таблицы, описывающей поля структуры
 class TableRow(Frame):
+    mismatch_color = '#ff9797'
+
     def __init__(self, master, field, color, parent):
         Frame.__init__(self, master)
         self.grid(column=0, row=0, sticky=(N, S, W, E))
@@ -71,8 +73,12 @@ class TableRow(Frame):
     # Функция-колбэк, вызываемая при выходе мыши за строку
     def _unmark_row(self, event):
         # При этом все компоненты в строке меняют цвет на цвет по умолчанию
+        if self.field.mismatch:
+            color_to_use = self.mismatch_color
+        else:
+            color_to_use = self.bg_color
         for ctrl in self.controls:
-            ctrl.config(bg=self.bg_color)
+            ctrl.config(bg=color_to_use)
 
     # Функция-колбэк, вызываемая при двойном клике на определенный компонент
     def _dblclick(self, event):

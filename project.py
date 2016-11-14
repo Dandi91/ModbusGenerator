@@ -61,6 +61,7 @@ class PhoenixField:
         self.state = FieldVar(state, StringVar(), self.changed)             # Статус переменной
         self.event = FieldVar(False, BooleanVar(), self.changed)            # Событие
         self.callback = callback
+        self.mismatch = False
         # При создании поля, если не указано явного статуса, то смотрим на префикс имени
         if state is None:
             name = name.lower()
@@ -79,6 +80,7 @@ class PhoenixField:
                     if name.lower().startswith(event.prefix().lower()):
                         self.event(True)
                         break
+        self.validate()
 
     def __eq__(self, other):
         if isinstance(other, str):
@@ -93,8 +95,15 @@ class PhoenixField:
         return self.name.__hash__()
 
     def changed(self):
+        self.validate()
         if self.callback is not None:
             self.callback()
+
+    def validate(self):
+        if self.event() and self.type.lower() != 'bool':
+            self.mismatch = True
+            return
+        self.mismatch = False
 
     def merge_with(self, other):
         self.type = other.type

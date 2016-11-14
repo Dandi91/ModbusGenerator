@@ -3,12 +3,14 @@ from xlwt import *
 
 # Тип адреса, формат данных метки, формат данных события
 templates_hmi = {
-    'bool':  ('4x_Bit', 'Undesignated', '16-bit Unsigned'),
+    'bool':  ('4x_Bit', 'Undesignated', '16-bit UNSIGNED'),
     'real':  ('4x', '32-bit FLOAT', '32-bit FLOAT'),
-    'int':   ('4x', 'Undesignated', '16-bit Unsigned'),
+    'int':   ('4x', '16-bit SIGNED', '16-bit SIGNED'),
+    'uint':  ('4x', '16-bit UNSIGNED', '16-bit UNSIGNED'),
     'dint':  ('4x', '32-bit SIGNED', '32-bit SIGNED'),
-    'time':  ('4x', 'Undesignated', '16-bit Unsigned'),
-    'word':  ('4x', 'Undesignated', '16-bit Unsigned'),
+    'udint': ('4x', '32-bit UNSIGNED', '32-bit UNSIGNED'),
+    'time':  ('4x', 'Undesignated', '16-bit UNSIGNED'),
+    'word':  ('4x', '16-bit UNSIGNED', '16-bit UNSIGNED'),
     'dword': ('4x', '32-bit UNSIGNED', '32-bit SIGNED')
 }
 

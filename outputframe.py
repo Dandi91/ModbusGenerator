@@ -1,4 +1,5 @@
 from tkinter import *
+from international import bind_int
 
 
 # Вкладка для вывода кода Modbus в PCWorx
@@ -39,7 +40,7 @@ class MBOutputFrame(Frame):
         scrollbar.config(command=code.yview)
         code.insert(1.0, text)
         code.config(state=DISABLED)
-        code.bind('<Control-c>', self.copy)
+        bind_int('<Control-c>', code.bind, self.copy)
         return frame
 
     def copy(self, event=None):

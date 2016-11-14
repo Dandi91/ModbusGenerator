@@ -5,6 +5,7 @@ from outputframe import *
 from project import Project
 from generator import Generator
 from generatemodal import GeneratorDialog
+from international import bind_int
 
 
 # Колбэк для запроса на сохранение
@@ -22,7 +23,7 @@ def quit_callback(event=None):
 # Главный класс приложения - реализует окно верхнего уровня
 # с меню и компонентом для закладок
 class Application(Frame):
-    title = 'Генератор модбаса v0.5'
+    title = 'Генератор модбаса v0.6'
 
     # Конструктор класса
     def __init__(self, master=None):
@@ -41,33 +42,36 @@ class Application(Frame):
         self.struct_menu = None
         self.notebook = None
         self.input_frame = None
-        self.bind_all('<Control-v>', self.paste)
+        bind_int('<Control-v>', self.bind_all, self.paste)
 
         self.create_menus()
         self.update_wnd_state()
+
+    def log(self, event):
+        print(event.keycode, event.keysym)
 
     # Метод создания пунктов меню
     def create_menus(self):
         main_menu = Menu(self.master)
         self.file_menu = Menu(main_menu, tearoff=0)
         self.file_menu.add_command(label='Новый проект', command=self.new_project, accelerator='Ctrl+N')
-        self.bind_all('<Control-n>', self.new_project)
+        bind_int('<Control-n>', self.bind_all, self.new_project)
         self.file_menu.add_command(label='Открыть проект...', command=self.open_project, accelerator='Ctrl+O')
-        self.bind_all('<Control-o>', self.open_project)
+        bind_int('<Control-o>', self.bind_all, self.open_project)
         self.file_menu.add_command(label='Сохранить проект', command=self.save_project, accelerator='Ctrl+S')
-        self.bind_all('<Control-s>', self.save_project)
+        bind_int('<Control-s>', self.bind_all, self.save_project)
         self.file_menu.add_command(label='Сохранить проект как...', command=self.save_project_as,
                                    accelerator='Ctrl+Shift+S')
-        self.bind_all('<Control-S>', self.save_project_as)
+        bind_int('<Control-S>', self.bind_all, self.save_project_as)
         self.file_menu.add_separator()
         self.file_menu.add_command(label='Выйти', command=quit_callback, accelerator='Ctrl+Q')
-        self.bind_all('<Control-q>', quit_callback)
+        bind_int('<Control-q>', self.bind_all, quit_callback)
         main_menu.add_cascade(label='Файл', menu=self.file_menu)
 
         self.proj_menu = Menu(main_menu, tearoff=0)
         self.proj_menu.add_command(label='Распознать события', command=self.detect_events)
         self.proj_menu.add_command(label='Генерировать', command=self.generate, accelerator='Ctrl+G')
-        self.bind_all('<Control-g>', self.generate)
+        bind_int('<Control-g>', self.bind_all, self.generate)
         self.proj_menu.add_command(label='Настройки генератора...', command=self.generation_settings)
         main_menu.add_cascade(label='Проект', menu=self.proj_menu)
 
