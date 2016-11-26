@@ -92,7 +92,7 @@ class LoopSkeleton:
         # Добавить цикл для пакетной обработки
         if do_loop:
             loop_begin = 'for i := 1 to {} do'.format(self.num_instances)
-            loop_end = 'end_if;'
+            loop_end = 'end_for;'
             if len(settings) > 0:
                 self.restore.insert(1, loop_begin)
                 self.settings.insert(1, loop_begin)

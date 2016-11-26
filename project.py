@@ -423,7 +423,7 @@ class Project:
     def analyze_input(self, text):
         text = self.fix_encoding(text)
         text = self.analyze_singles(text)
-        raw_structs = findall('\s(\S+?)\s*:\s*STRUCT(.+?)END_STRUCT;.*?', text, MULTILINE and DOTALL)
+        raw_structs = findall('\s*(\S+?)\s*:\s*STRUCT(.+?)END_STRUCT;.*?', text, MULTILINE and DOTALL)
         for struct in raw_structs:
             # Для каждой найденной структуры вызывается отдельный метод
             # для разбиения данной структуры на поля и распознание атрибутов
