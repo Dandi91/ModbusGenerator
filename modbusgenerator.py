@@ -24,7 +24,7 @@ templates_to_plc = {
     'uint':  '{3}{4} := WORD_TO_UINT({0}[{1}]);',
     'dint':  'TempDword.W0 := {0}[{1}];{5} TempDword.W1 := {0}[{6}]; {3}{4} := DWORD_TO_DINT(TempDword);',
     'udint': 'TempDword.W0 := {0}[{1}];{5} TempDword.W1 := {0}[{6}]; {3}{4} := DWORD_TO_UDINT(TempDword);',
-    'time':  '{3}{4} := DINT_TO_TIME(WORD_TO_DINT({0}[{1}]) * DINT#1000)',
+    'time':  '{3}{4} := DINT_TO_TIME(WORD_TO_DINT({0}[{1}]) * DINT#1000);',
     'word':  '{3}{4} := {0}[{1}];',
     'dword': '{3}{4}.W0 := {0}[{1}];{5} {3}{4}.W1 := {0}[{6}];'
 }
@@ -118,12 +118,15 @@ class LoopSkeleton:
                 for l in lists_to_append:
                     l.append(advance)
 
-        # Определить имя структуры
-        struct_name = ''
-        if do_loop:
-            struct_name = self.get_array_name(self.struct) + '[i].'
         # Для каждого тэга нагенерить код
         if len(tag_list) > 0:
+            # Определить имя структуры
+            if do_loop:
+                struct_name = self.get_array_name(self.struct) + '[i].'
+            elif tag_list[0].instance != '':
+                struct_name = tag_list[0].instance + '.'
+            else:
+                struct_name = ''
             first_address = tag_list[0].address
             if do_loop:
                 for l in lists_to_append:
