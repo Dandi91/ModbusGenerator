@@ -313,23 +313,40 @@ class ModbusGenerator:
             restore.extend(skeleton.restore)
             settings.extend(skeleton.settings)
             indication.extend(skeleton.indication)
-        if self.settings.gen_cancel():
-            restore.insert(0, 'if Restore or {}[{}].X{} then'.format(self.settings.mb_arr_name(),
-                                                                     self.settings.gen_cancel_word(),
-                                                                     self.settings.gen_cancel_bit()))
-        else:
-            restore.insert(0, 'if Restore then')
-        restore.append('end_if;')
-        if self.settings.gen_save():
-            settings.insert(0, 'if {}[{}].X{} then'.format(self.settings.mb_arr_name(), self.settings.gen_save_word(),
-                                                           self.settings.gen_save_bit()))
-            settings.append('end_if;')
-        result = '(* --------- Восстановление настроек в Modbus после перезапуска ПЛК --------- *)\n'
-        result += '\n'.join(restore) + '\n'
-        result += '\n\n(* --------------------- Прием настроек в ПЛК из Modbus --------------------- *)\n'
-        result += '\n'.join(settings) + '\n'
-        result += '\n\n(* -------------------- Работа с показаниями и командами -------------------- *)\n'
-        result += '\n'.join(indication) + '\n'
+        if len(restore) > 0:
+            # Генерировать только если нужно
+            if self.settings.gen_cancel():
+                restore.insert(0, 'if Restore or {}[{}].X{} then'.format(self.settings.mb_arr_name(),
+                                                                         self.settings.gen_cancel_word(),
+                                                                         self.settings.gen_cancel_bit()))
+            else:
+                restore.insert(0, 'if Restore then')
+            restore.insert(1, 'Restore := false;')
+            restore.append('end_if;')
+            # Отбить блок кода
+            restore.insert(0, '(* --------- Восстановление настроек в Modbus после перезапуска ПЛК --------- *)')
+            restore.insert(1, '')
+            restore.append('')
+            restore.append('')
+        if len(settings) > 0:
+            # Генерировать только если нужно
+            if self.settings.gen_save():
+                settings.insert(0, 'if {}[{}].X{} then'.format(self.settings.mb_arr_name(),
+                                                               self.settings.gen_save_word(),
+                                                               self.settings.gen_save_bit()))
+                settings.append('end_if;')
+            settings.insert(0, '(* --------------------- Прием настроек в ПЛК из Modbus --------------------- *)')
+            settings.insert(1, '')
+            settings.append('')
+            settings.append('')
+        if len(indication) > 0:
+            indication.insert(0, '(* -------------------- Работа с показаниями и командами -------------------- *)')
+            indication.insert(1, '')
+            indication.append('')
+            indication.append('')
+        result = '\n'.join(restore)
+        result += '\n'.join(settings)
+        result += '\n'.join(indication)
         in_code, out_code = self.generate_inout()
-        result = in_code + '\n\n' + result + '\n\n' + out_code + 'Restore := false;\n'
+        result = in_code + '\n\n' + result + '\n\n' + out_code
         return LoopSkeleton.format_code(result)
