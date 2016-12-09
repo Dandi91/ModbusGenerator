@@ -1,3 +1,5 @@
+from tkinter import messagebox
+
 
 alarm_def_file_name = 'AlarmText.csv'
 alarm_defs = '{};1;0.000000;0.000000;@GV.{}\n'
@@ -89,9 +91,17 @@ class WebVisitGenerator:
             text_defs += alarm_text.format(i + 1, tag.get_description())
         tag_defs = alarm_def_file_name + '\n' + str(len(tags)) + '\n' + tag_defs
         text_defs = default_text + '\n' + text_defs
-        f = open(self.settings.webvisit_file(), 'w')
-        f.write(tag_defs)
-        f.close()
-        f = open(self.settings.webvisit_text_file(), 'w')
-        f.write(text_defs)
-        f.close()
+        try:
+            f = open(self.settings.webvisit_file(), 'w')
+            f.write(tag_defs)
+            f.close()
+        except FileNotFoundError:
+            messagebox.showerror('Ошибка', 'Невозможно создать файл \'' + self.settings.webvisit_file() + '\'.')
+            return
+        try:
+            f = open(self.settings.webvisit_text_file(), 'w')
+            f.write(text_defs)
+            f.close()
+        except FileNotFoundError:
+            messagebox.showerror('Ошибка', 'Невозможно создать файл \'' + self.settings.webvisit_text_file() + '\'.')
+            return

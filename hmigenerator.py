@@ -1,4 +1,5 @@
 from xlwt import *
+from tkinter import messagebox
 
 
 # Тип адреса, формат данных метки, формат данных события
@@ -25,7 +26,11 @@ class HMIGenerator:
     def generate(self):
         tags = self.get_hmi_tags()
         # Пишем метки
-        f = open(self.settings.weintek_tag_file(), 'w')
+        try:
+            f = open(self.settings.weintek_tag_file(), 'w')
+        except FileNotFoundError:
+            messagebox.showerror('Ошибка', 'Невозможно создать файл \'' + self.settings.weintek_tag_file() + '\'.')
+            return
         for tag in tags:
             f.write(self.generate_hmi_tag(tag) + '\n')
         f.close()
