@@ -35,6 +35,7 @@ class TableRow(Frame):
         cbb = Combobox(self, textvariable=field.state.var, values=states, width=25)
         cbb.state(['readonly'])
         cbb.grid(column=3, row=0, sticky=(W, E))
+        cbb.bind('<MouseWheel>', self._on_mousewheel)
 
         # Создаем чекбокс для отметки события
         self.create_cb(field.event.var, 4)
@@ -134,6 +135,10 @@ class TableRow(Frame):
             popup.tk_popup(event.x_root + 82, event.y_root + 11, 0)
         finally:
             popup.grab_release()
+
+    def _on_mousewheel(self, event):
+        self.master.master.master.on_mousewheel(event)
+        return 'break'
 
 
 # Базовый класс для ввода полей/переменных

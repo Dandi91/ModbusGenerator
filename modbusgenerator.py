@@ -1,4 +1,5 @@
 from project import PhoenixStruct, FieldState
+from string import capwords
 
 
 # 0 - имя массива Modbus
@@ -220,7 +221,7 @@ class LoopSkeleton:
         max_name_length = 30
         vowels = ('a', 'e', 'i', 'o', 'y', 'u')
         if len(name) > max_name_length:
-            name.capwords('_')
+            capwords(name, '_')
             name.replace('_', '')
             if len(name) > max_name_length:
                 for vowel in vowels:

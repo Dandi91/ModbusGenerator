@@ -47,7 +47,7 @@ class VerticalScrolledFrame(Frame):
         canvas.bind('<Configure>', _configure_canvas)
 
         def _bound_to_mousewheel(event):
-            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            canvas.bind_all("<MouseWheel>", self.on_mousewheel)
 
         def _unbound_to_mousewheel(event):
             canvas.unbind_all("<MouseWheel>")
@@ -55,6 +55,6 @@ class VerticalScrolledFrame(Frame):
         interior.bind('<Enter>', _bound_to_mousewheel)
         interior.bind('<Leave>', _unbound_to_mousewheel)
 
-        def _on_mousewheel(event):
-            if interior.winfo_height() > canvas.winfo_height():
-                canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+    def on_mousewheel(self, event):
+        if self.interior.winfo_height() > self.canvas.winfo_height():
+            self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
