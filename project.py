@@ -449,7 +449,7 @@ class Project:
         for line in lines:
             line = line.strip()
             if line.find('VAR_GLOBAL') > -1:
-                fields = search('^(\S+)\s+(\S+)\s+VAR_GLOBAL\s+(.*)$', line)
+                fields = search('^(\S+)\s+(\S+)\s+VAR_GLOBAL\s*(.*)$', line)
                 var_name = fields.group(1)
                 if var_name in self.singles:
                     if messagebox.askyesno('Внимание',
