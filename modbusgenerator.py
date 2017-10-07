@@ -265,7 +265,7 @@ class ModbusGenerator:
 
     # Генерация скелетов структур для дальнейшего использования
     def generate(self):
-        structs = list(self.project.structs)
+        structs = list([item for item in self.project.structs if len(item.fields) > 0])
         structs.append(self.project.singles)
         for struct, space in zip(structs, self.addr_spaces):
             self.skeletons.append(LoopSkeleton(self, struct, space))
